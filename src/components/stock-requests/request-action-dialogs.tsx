@@ -110,7 +110,7 @@ export function RequestActionDialog({ action, onClose, actorId }: { action: Requ
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           {action.kind === "reject"
-            ? <Button variant="destructive" onClick={submit} disabled={saving || (reason === "Other" && !detail.trim())}>{saving && <Loader2 className="size-4 animate-spin" />}Reject request</Button>
+            ? <Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={submit} disabled={saving || (reason === "Other" && !detail.trim())}>{saving && <Loader2 className="size-4 animate-spin" />}Reject request</Button>
             : <Button onClick={submit} disabled={saving || (action.kind === "fulfill" && (!!qtyError || avail.available === 0))}>{saving && <Loader2 className="size-4 animate-spin" />}{action.kind === "approve" ? "Approve request" : "Issue stock"}</Button>}
         </DialogFooter>
       </DialogContent>

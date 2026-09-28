@@ -66,9 +66,9 @@ export function BranchDetailsPage({ branchId }: { branchId: string }) {
           </div>
           <div className="px-5 pb-5"><ProgressBar value={perf.achievement} band={perf.band} /></div>
         </Panel>
-        <Panel title="Inventory summary" subtitle="From branch stock records">
+        <Panel title="Inventory summary" subtitle="From branch stock records" action={<Button variant="ghost" size="sm" asChild><Link to="/inventory" search={{ branch: branch.id }}>View inventory</Link></Button>}>
           <div className="grid grid-cols-2 gap-4 p-5">
-            {[["Total products", String(inv.total)], ["Low stock", String(inv.low)], ["Out of stock", String(inv.out)], ["Inventory health", `${formatPercent(inv.healthPct, 0)} · ${inv.status}`]].map(([k, v]) => <div key={k}><p className="text-[11px] text-muted-foreground">{k}</p><p className="mt-1 text-base font-bold">{v}</p></div>)}
+            {[["Total products", String(inv.total)], ["Low stock", String(inv.low)], ["Out of stock", String(inv.out)], ["Units on hand", inv.units.toLocaleString("en-NG")], ["Inventory value", formatNaira(inv.value)], ["Inventory health", `${formatPercent(inv.healthPct, 0)} · ${inv.status}`]].map(([k, v]) => <div key={k}><p className="text-[11px] text-muted-foreground">{k}</p><p className="mt-1 text-base font-bold">{v}</p></div>)}
           </div>
         </Panel>
       </section>

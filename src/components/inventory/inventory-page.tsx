@@ -36,9 +36,10 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
   const [adjusting, setAdjusting] = useState<InventoryRow | null>(null);
   const [movesOpen, setMovesOpen] = useState(false);
 
-  const filterScope = { branchIds: scope.branchIds, branchId: branch === ALL ? undefined : branch, category: category === ALL ? undefined : category };
+  const activeBranch = multiBranch ? branch : ALL;
+  const filterScope = { branchIds: scope.branchIds, branchId: activeBranch === ALL ? undefined : activeBranch, category: category === ALL ? undefined : category };
   const summary = getInventorySummary(db, filterScope);
-  const rows = useMemo(() => getInventoryRows(db, filterScope), [db, scope.branchIds, branch, category]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => getInventoryRows(db, filterScope), [db, scope.branchIds, activeBranch, category]); // eslint-disable-line react-hooks/exhaustive-deps
   const categories = [...new Set(db.products.map((p) => p.category))].sort();
   const branches = db.branches.filter((b) => !scope.branchIds || scope.branchIds.includes(b.id));
 
@@ -83,7 +84,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
         <Button variant="outline" onClick={() => setMovesOpen(true)}><History className="size-4" /><span className="hidden sm:inline">View Movements</span></Button>
         {scope.canManageStock && <Button onClick={() => openAdd()}><Plus className="size-4" /><span className="hidden sm:inline">Add Stock</span></Button>}
       </div>}>
-      <div className="mb-5"><h1 className="text-xl font-bold">Inventory</h1><p className="mt-1 text-xs text-muted-foreground">Monitor stock levels, availability, and inventory movement across your branches{branch !== ALL ? ` · ${db.branches.find((b) => b.id === branch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
+      <div className="mb-5"><h1 className="text-xl font-bold">Inventory</h1><p className="mt-1 text-xs text-muted-foreground">Monitor stock levels, availability, and inventory movement across your branches{activeBranch !== ALL ? ` · ${db.branches.find((b) => b.id === activeBranch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <MetricCard icon={Package} tone="brand" label="Total products" value={formatNumber(summary.products)} detail="Represented in inventory" />
@@ -105,16 +106,16 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
             options={[["status:1", "Needs attention first"], ["product:1", "Product A–Z"], ["available:-1", "Most available"], ["available:1", "Least available"], ["updated:-1", "Recently updated"]].map(([value = "", label = ""]) => ({ value, label }))} /></div>
         </div>}>
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[1080px] text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead><tr className="text-[10px] uppercase text-muted-foreground">
-              <SortHead k="product" label="Product" /><th className="px-4 py-3">SKU</th><th className="px-4 py-3">Branch</th>
+              <SortHead k="product" label="Product" /><th className="hidden px-4 py-3 xl:table-cell">SKU</th><th className="px-4 py-3">Branch</th>
               <th className="px-4 py-3 text-right">On hand</th><th className="px-4 py-3 text-right">Reserved</th><SortHead k="available" label="Available" right /><th className="px-4 py-3 text-right">Threshold</th>
               <SortHead k="status" label="Status" /><SortHead k="updated" label="Last updated" /><th className="px-4 py-3 text-right">Actions</th>
             </tr></thead>
             <tbody>{shown.map((r) => (
               <tr key={r.record.id} onClick={() => open(r.record)} className="cursor-pointer border-t border-border text-xs transition-colors hover:bg-muted/60">
-                <td className="px-4 py-3.5"><p className="font-bold">{r.product.name}</p><p className="text-[11px] text-muted-foreground">{r.product.category} · {formatNaira(r.product.unitPrice)}</p></td>
-                <td className="px-4 py-3.5 font-mono text-[11px] text-muted-foreground">{r.product.sku}</td>
+                <td className="px-4 py-3.5"><p className="font-bold">{r.product.name}</p><p className="text-[11px] text-muted-foreground"><span className="font-mono xl:hidden">{r.product.sku} · </span>{r.product.category} · {formatNaira(r.product.unitPrice)}</p></td>
+                <td className="hidden px-4 py-3.5 font-mono text-[11px] text-muted-foreground xl:table-cell">{r.product.sku}</td>
                 <td className="px-4 py-3.5">{r.branch.name}</td>
                 <td className="px-4 py-3.5 text-right font-semibold">{formatNumber(r.record.quantityOnHand)}</td>
                 <td className="px-4 py-3.5 text-right text-muted-foreground">{r.record.quantityReserved}</td>
@@ -146,7 +147,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
 
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} scope={scope} defaults={addDefaults} />
       <AdjustStockDialog record={adjusting?.record ?? null} productName={adjusting?.product.name ?? ""} onClose={() => setAdjusting(null)} actorId={userId} />
-      <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={branch === ALL ? undefined : branch} />
+      <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={activeBranch === ALL ? undefined : activeBranch} />
     </AppShell>
   );
 }

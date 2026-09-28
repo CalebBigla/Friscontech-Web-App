@@ -15,3 +15,7 @@
 - Writes go through `src/services/services.ts` (async, API-shaped) over the store in `src/services/mock-store.ts`; so swapping to a real API touches one file.
 - Demo RBAC scope comes from `src/lib/session.ts` (`getAccessScope`); so every page filters data by role the same way.
 - Use Instrument Sans for the product interface and IBM Plex Sans Light only for subdued supporting copy; this keeps hierarchy clear without weakening primary information.
+
+- Inventory/stock-request math lives in `src/lib/inventory-calculations.ts` (available = onHand − reserved, status, value, availability, timelines); so stock numbers are never computed in components.
+- `applyInventoryChange` in `src/services/services.ts` is the only writer of `quantityOnHand` and always appends an `inventoryMovements` row, refusing negatives; so every stock change is traceable (sales, stock issues, additions, adjustments).
+- Stock requests: approval never touches stock; only fulfillment deducts, with `partially_fulfilled` when issued < approved; so the workflow stays auditable.
