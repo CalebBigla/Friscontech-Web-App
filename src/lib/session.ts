@@ -23,7 +23,7 @@ export type AccessScope = {
 };
 
 export function getAccessScope(db: Db, userId: string): AccessScope {
-  const user = db.users.find((x) => x.id === userId) ?? db.users[0];
+  const user = (db.users.find((x) => x.id === userId) ?? db.users[0])!;
   const own = user.branchId ? [user.branchId] : [];
   switch (user.role) {
     case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true };

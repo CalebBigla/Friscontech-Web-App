@@ -5,7 +5,8 @@
 import type { Activity, Branch, BranchStatus, Db, Sale } from "@/data/mock-db";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type Result<T> = { ok: true; data: T } | { ok: false; errors: Record<string, string> };
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate", string>>;
+export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
 
@@ -19,7 +20,7 @@ function activity(db: Db, actorId: string, action: string, subject: string): Act
 }
 
 export function validateBranch(db: Db, input: BranchInput, editingId?: string) {
-  const errors: Record<string, string> = {};
+  const errors: FieldErrors = {};
   if (!input.name.trim()) errors.name = "Branch name is required";
   if (!input.code.trim()) errors.code = "Branch code is required";
   else if (db.branches.some((b) => b.id !== editingId && b.code.toLowerCase() === input.code.trim().toLowerCase())) errors.code = "This branch code is already in use";
@@ -76,7 +77,7 @@ export const mockBranchService = {
 };
 
 export function validateSale(db: Db, input: SaleInput) {
-  const errors: Record<string, string> = {};
+  const errors: FieldErrors = {};
   const branch = db.branches.find((b) => b.id === input.branchId);
   if (!branch) errors.branchId = "Branch is required";
   else if (branch.status !== "active") errors.branchId = "Sales can only be recorded for active branches";

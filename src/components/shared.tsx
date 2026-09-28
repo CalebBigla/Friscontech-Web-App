@@ -44,6 +44,6 @@ export function Panel({ title, subtitle, action, children, className = "" }: { t
 export function EmptyState({ title, detail }: { title: string; detail?: string }) {
   return <div className="p-10 text-center"><p className="text-sm font-bold">{title}</p>{detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}</div>;
 }
-export function FieldError({ message }: { message?: string }) {
+export function FieldError({ message }: { message?: string | undefined }) {
   return message ? <p className="mt-1 text-[11px] font-medium text-destructive">{message}</p> : null;
 }

@@ -39,7 +39,7 @@ const tenant: Tenant = { id: T, name: "Westfield Retail", currency: "NGN", refer
 
 const b = (id: string, name: string, code: string, location: string, address: string, managerId: string | null, status: BranchStatus = "active"): Branch => ({
   id, tenantId: T, name, code, location, address, managerId, status, createdAt: "2025-01-10",
-  phone: `+234 80${id.slice(-1)} 555 01${id.slice(-2)}`, email: `${code.split("-")[0].toLowerCase()}@westfield.ng`,
+  phone: `+234 80${id.slice(-1)} 555 01${id.slice(-2)}`, email: `${code.split("-")[0]!.toLowerCase()}@westfield.ng`,
 });
 
 const branches: Branch[] = [
@@ -53,7 +53,7 @@ const branches: Branch[] = [
 
 const u = (id: string, name: string, role: Role, branchId: string | null): User => ({
   id, tenantId: T, name, role, branchId, status: "active",
-  email: `${name.split(" ")[0].toLowerCase()}.${name.split(" ")[1].toLowerCase()}@westfield.ng`,
+  email: `${name.split(" ")[0]!.toLowerCase()}.${name.split(" ")[1]!.toLowerCase()}@westfield.ng`,
 });
 
 const users: User[] = [
@@ -119,12 +119,12 @@ function seedSales(): Sale[] {
     for (const branch of branches) {
       if (branch.id === "branch-006" && date > "2026-08-15") continue; // deactivated mid-August
       const branchReps = reps.filter((r) => r.branchId === branch.id);
-      const count = Math.round((1 + rand() * 3) * branchDemand[branch.id]);
+      const count = Math.round((1 + rand() * 3) * (branchDemand[branch.id] ?? 1));
       for (let i = 0; i < count; i++) {
         let pick = rand(), idx = 0;
-        while (idx < productWeights.length - 1 && pick > productWeights[idx]) { pick -= productWeights[idx]; idx++; }
-        const product = products[idx];
-        const rep = branchReps[Math.floor(rand() * branchReps.length)];
+        while (idx < productWeights.length - 1 && pick > productWeights[idx]!) { pick -= productWeights[idx]!; idx++; }
+        const product = products[idx]!;
+        const rep = branchReps[Math.floor(rand() * branchReps.length)]!;
         const hour = 9 + Math.floor(rand() * 10), minute = Math.floor(rand() * 60);
         const statusRoll = rand();
         out.push({
@@ -152,7 +152,7 @@ function seedTargets(): Target[] {
   const months = ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
   for (const month of months) {
     for (const branch of branches) {
-      const amount = branchTargetBase[branch.id];
+      const amount = branchTargetBase[branch.id] ?? 0;
       out.push({ id: `target-${branch.id}-${month}`, tenantId: T, scope: "branch", branchId: branch.id, userId: null, month, amount });
       const reps = users.filter((x) => x.role === "sales_rep" && x.branchId === branch.id);
       for (const rep of reps) {

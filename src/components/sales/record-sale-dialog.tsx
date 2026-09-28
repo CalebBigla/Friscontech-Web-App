@@ -8,16 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FilterSelect } from "@/components/shared";
 import { useDb } from "@/services/mock-store";
-import { salesService } from "@/services/services";
+import { salesService, type FieldErrors } from "@/services/services";
 import type { AccessScope } from "@/lib/session";
 import { formatNaira } from "@/lib/format";
 
 type Form = { branchId: string; salesRepId: string; productId: string; quantity: string; unitPrice: string; saleDate: string };
 
-export function RecordSaleDialog({ open, onOpenChange, scope, defaultBranchId }: { open: boolean; onOpenChange: (o: boolean) => void; scope: AccessScope; defaultBranchId?: string }) {
+export function RecordSaleDialog({ open, onOpenChange, scope, defaultBranchId }: { open: boolean; onOpenChange: (o: boolean) => void; scope: AccessScope; defaultBranchId?: string | undefined }) {
   const db = useDb();
   const [form, setForm] = useState<Form>({ branchId: "", salesRepId: "", productId: "", quantity: "1", unitPrice: "", saleDate: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
 
   const branches = db.branches.filter((b) => b.status === "active" && (!scope.branchIds || scope.branchIds.includes(b.id)));

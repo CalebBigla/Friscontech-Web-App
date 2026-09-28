@@ -12,16 +12,16 @@ export const formatNumber = (value: number) => value.toLocaleString("en-NG");
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export function formatDate(date: string) {
-  const [y, m, d] = date.slice(0, 10).split("-").map(Number);
+  const [y = 0, m = 1, d = 1] = date.slice(0, 10).split("-").map(Number);
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 export function formatShortDate(date: string) {
-  const [, m, d] = date.slice(0, 10).split("-").map(Number);
+  const [, m = 1, d = 1] = date.slice(0, 10).split("-").map(Number);
   return `${MONTHS[m - 1]} ${d}`;
 }
 export const formatTime = (iso: string) => iso.slice(11, 16);
 export function formatMonth(month: string) {
-  const [y, m] = month.split("-").map(Number);
+  const [y = 0, m = 1] = month.split("-").map(Number);
   return `${MONTHS[m - 1]} ${y}`;
 }
 export const roleLabel = { owner: "Owner", manager: "Manager", storekeeper: "Storekeeper", sales_rep: "Sales Representative" } as const;

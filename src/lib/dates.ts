@@ -10,19 +10,19 @@ export function daysBetween(from: string, to: string) {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 export function daysInMonth(month: string) {
-  const [y, m] = month.split("-").map(Number);
+  const [y = 2026, m = 1] = month.split("-").map(Number);
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 export const monthOf = (date: string) => date.slice(0, 7);
 
 /** Resolves a named period to an inclusive date range ending on the reference date. */
-export function getPeriodRange(period: PeriodKey, today: string, custom?: Partial<DateRange>): DateRange {
+export function getPeriodRange(period: PeriodKey, today: string, custom?: { from?: string | undefined; to?: string | undefined }): DateRange {
   switch (period) {
     case "today": return { from: today, to: today };
     case "week": return { from: addDays(today, -6), to: today };
     case "month": return { from: `${monthOf(today)}-01`, to: today };
     case "quarter": {
-      const [y, m] = today.split("-").map(Number);
+      const [y = 2026, m = 1] = today.split("-").map(Number);
       const qm = Math.floor((m - 1) / 3) * 3 + 1;
       return { from: `${y}-${String(qm).padStart(2, "0")}-01`, to: today };
     }

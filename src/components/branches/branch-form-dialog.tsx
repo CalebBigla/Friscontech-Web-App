@@ -9,14 +9,14 @@ import { Label } from "@/components/ui/label";
 import { FieldError, FilterSelect } from "@/components/shared";
 import type { Branch } from "@/data/mock-db";
 import { useDb } from "@/services/mock-store";
-import { branchService, type BranchInput } from "@/services/services";
+import { branchService, type BranchInput, type FieldErrors } from "@/services/services";
 
 const empty: BranchInput = { name: "", code: "", location: "", address: "", phone: "", email: "", managerId: "", status: "active" };
 
 export function BranchFormDialog({ open, onOpenChange, branch, actorId }: { open: boolean; onOpenChange: (o: boolean) => void; branch?: Branch | null; actorId: string }) {
   const db = useDb();
   const [form, setForm] = useState<BranchInput>(empty);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {

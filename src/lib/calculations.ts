@@ -6,11 +6,11 @@ import type { Branch, Db, Sale, User } from "@/data/mock-db";
 import { addDays, daysBetween, daysInMonth, isoWeek, monthOf, type DateRange } from "@/lib/dates";
 
 export type SalesFilters = {
-  range?: DateRange;
-  branchId?: string;
-  branchIds?: string[] | null; // access scope
-  repId?: string;
-  productId?: string;
+  range?: DateRange | undefined;
+  branchId?: string | undefined;
+  branchIds?: string[] | null | undefined; // access scope
+  repId?: string | undefined;
+  productId?: string | undefined;
   includeNonCompleted?: boolean;
 };
 export type PerformanceBand = "exceeding" | "on_track" | "behind";
@@ -70,7 +70,7 @@ export function getRepTargetProgress(db: Db, repId: string, month: string) {
 }
 
 /** Target for an arbitrary range, prorated daily from monthly targets. */
-export function getTargetForRange(db: Db, range: DateRange, scope: { branchIds?: string[] | null; branchId?: string; repId?: string }) {
+export function getTargetForRange(db: Db, range: DateRange, scope: { branchIds?: string[] | null | undefined; branchId?: string | undefined; repId?: string | undefined }) {
   let total = 0;
   for (let date = range.from; date <= range.to; date = addDays(date, 1)) {
     const month = monthOf(date);
