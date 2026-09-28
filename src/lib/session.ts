@@ -20,16 +20,25 @@ export type AccessScope = {
   canManageBranches: boolean;
   canRecordSales: boolean;
   canViewSales: boolean;
+  /** add / adjust stock (storekeeper only) */
+  canManageStock: boolean;
+  /** approve / reject pending stock requests */
+  canReviewRequests: boolean;
+  /** issue stock against approved requests */
+  canFulfillRequests: boolean;
+  /** submit new stock requests (sales reps) */
+  canCreateRequests: boolean;
 };
 
+const none = { canManageStock: false, canReviewRequests: false, canFulfillRequests: false, canCreateRequests: false };
 export function getAccessScope(db: Db, userId: string): AccessScope {
   const user = (db.users.find((x) => x.id === userId) ?? db.users[0])!;
   const own = user.branchId ? [user.branchId] : [];
   switch (user.role) {
-    case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true };
-    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: true, canViewSales: true };
-    case "storekeeper": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: false };
-    case "sales_rep": return { user, branchIds: own, repId: user.id, canManageBranches: false, canRecordSales: true, canViewSales: true };
+    case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true, ...none };
+    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canReviewRequests: true };
+    case "storekeeper": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: false, canManageStock: true, canReviewRequests: true, canFulfillRequests: true, canCreateRequests: false };
+    case "sales_rep": return { user, branchIds: own, repId: user.id, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canCreateRequests: true };
   }
 }
 export const canSeeBranch = (scope: AccessScope, branchId: string) => !scope.branchIds || scope.branchIds.includes(branchId);

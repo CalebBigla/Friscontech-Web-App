@@ -12,14 +12,14 @@ import { useDb } from "@/services/mock-store";
 import { getAccessScope, setCurrentUserId, useCurrentUserId } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavItem = { label: string; icon: LucideIcon; to?: "/" | "/branches" | "/sales"; ownerOnly?: boolean; needsSales?: boolean };
+type NavItem = { label: string; icon: LucideIcon; to?: "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests"; ownerOnly?: boolean; needsSales?: boolean };
 const sections: { title: string; items: NavItem[] }[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/", ownerOnly: true }] },
   { title: "Operations", items: [
     { label: "Branches", icon: Store, to: "/branches" },
     { label: "Sales", icon: ShoppingCart, to: "/sales", needsSales: true },
-    { label: "Inventory", icon: Boxes },
-    { label: "Stock Requests", icon: ClipboardList },
+    { label: "Inventory", icon: Boxes, to: "/inventory" },
+    { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
     { label: "Targets", icon: Target },
   ] },
   { title: "Management", items: [{ label: "Products", icon: Package }, { label: "Users", icon: Users }, { label: "Reports", icon: BarChart3 }] },

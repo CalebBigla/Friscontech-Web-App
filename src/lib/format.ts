@@ -26,3 +26,11 @@ export function formatMonth(month: string) {
 }
 export const roleLabel = { owner: "Owner", manager: "Manager", storekeeper: "Storekeeper", sales_rep: "Sales Representative" } as const;
 export const initials = (name: string) => name.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
+/** "Today, 10:42" / "Yesterday, 15:15" / "Sep 24, 11:20" relative to the tenant reference date. */
+export function formatDayTime(iso: string, today: string) {
+  const day = iso.slice(0, 10);
+  const y = new Date(`${today}T00:00:00Z`); y.setUTCDate(y.getUTCDate() - 1);
+  const label = day === today ? "Today" : day === y.toISOString().slice(0, 10) ? "Yesterday" : formatShortDate(day);
+  return `${label}, ${formatTime(iso)}`;
+}
+export const formatUnits = (n: number) => `${n.toLocaleString("en-NG")} ${Math.abs(n) === 1 ? "unit" : "units"}`;

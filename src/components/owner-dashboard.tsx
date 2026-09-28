@@ -7,7 +7,7 @@ import { AppShell, RestrictedNotice } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { useDb } from "@/services/mock-store";
-import { stockRequestService } from "@/services/services";
+import { requestStatusLabel } from "@/lib/inventory-calculations";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
 import {
   bandLabel, getBranchInventoryHealth, getBranchManager, getBranchPerformance, getDeadStockValue, getSalesRevenue,
@@ -124,7 +124,7 @@ export function OwnerDashboard() {
       <section className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr_0.9fr]">
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-center justify-between"><h2 className="panel-title">Stock requests</h2><span className="status status-brand">{pending} pending</span></div>
-          <div className="mt-4 space-y-2">{requests.map((request) => { const done = request.status === "approved"; return <div key={request.id} className="flex items-center gap-3 rounded-md bg-muted p-3"><span className="grid size-8 shrink-0 place-items-center rounded-md bg-background"><Package className="size-4 text-primary" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{nameOf(request.branchId)}</p><p className="truncate text-[10px] text-muted-foreground">{request.quantity} units · {productOf(request.productId)} · {minutesAgo(request.requestedAt, nowIso)}</p></div><Button size="sm" variant={done ? "soft" : "ghost"} onClick={() => { void stockRequestService.approve(request.id, userId); toast.success(`${request.id} approved`); }} disabled={done}>{done ? <><Check className="size-3" />Approved</> : "Approve"}</Button></div>; })}</div>
+          <div className="mt-4 space-y-2">{requests.map((request) => { const done = request.status !== "pending"; return <div key={request.id} className="flex items-center gap-3 rounded-md bg-muted p-3"><span className="grid size-8 shrink-0 place-items-center rounded-md bg-background"><Package className="size-4 text-primary" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{nameOf(request.branchId)}</p><p className="truncate text-[10px] text-muted-foreground">{request.quantityRequested} units · {productOf(request.productId)} · {minutesAgo(request.requestedAt, nowIso)}</p></div><Button size="sm" variant={done ? "soft" : "ghost"} asChild><Link to="/stock-requests/$requestId" params={{ requestId: request.id }}>{done ? <><Check className="size-3" />{requestStatusLabel[request.status]}</> : "Review"}</Link></Button></div>; })}</div>
         </article>
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-center justify-between"><h2 className="panel-title">Recent activity</h2><Button variant="ghost" size="sm" asChild><Link to="/sales">View all</Link></Button></div>

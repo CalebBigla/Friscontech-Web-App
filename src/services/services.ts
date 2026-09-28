@@ -2,10 +2,12 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { Activity, Branch, BranchStatus, Db, Sale } from "@/data/mock-db";
+import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Sale, StockRequest } from "@/data/mock-db";
+import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
+import { getAccessScope } from "@/lib/session";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
@@ -86,6 +88,11 @@ export function validateSale(db: Db, input: SaleInput) {
   else if (rep.role !== "sales_rep" || rep.branchId !== input.branchId) errors.salesRepId = "Rep must belong to the selected branch";
   if (!db.products.some((pr) => pr.id === input.productId)) errors.productId = "Product is required";
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Quantity must be greater than zero";
+  else if (branch && !errors.productId) {
+    const inv = findInventory(db, input.branchId, input.productId);
+    const available = inv ? getAvailable(inv) : 0;
+    if (input.quantity > available) errors.quantity = `Insufficient stock — only ${available} available at this branch`;
+  }
   if (!Number.isFinite(input.unitPrice) || input.unitPrice <= 0) errors.unitPrice = "Enter a valid unit price";
   if (!input.saleDate) errors.saleDate = "Sale date is required";
   else if (input.saleDate > db.tenant.referenceDate) errors.saleDate = "Sale date cannot be in the future";
@@ -105,20 +112,159 @@ export const mockSalesService = {
     };
     const product = current.products.find((pr) => pr.id === input.productId);
     const branch = current.branches.find((b) => b.id === input.branchId);
-    setDb((d) => ({ ...d, sales: [...d.sales, sale], activities: [activity(d, actorId, "Sale recorded", `${branch?.name} · ${product?.name} × ${input.quantity}`), ...d.activities] }));
+    setDb((d) => ({ ...applyInventoryChange(d, { branchId: sale.branchId, productId: sale.productId, delta: -sale.quantity, type: "sale", referenceType: "sale", referenceId: sale.id, performedBy: sale.salesRepId, at: sale.createdAt }), sales: [...d.sales, sale], activities: [activity(d, actorId, "Sale recorded", `${branch?.name} · ${product?.name} × ${input.quantity}`), ...d.activities] }));
     return { ok: true, data: sale };
   },
 };
 
+// ---------- inventory ----------
+type InventoryChange = {
+  branchId: string; productId: string; delta: number; type: InventoryMovement["type"];
+  referenceType?: InventoryMovement["referenceType"]; referenceId?: string | undefined; performedBy: string; at: string; note?: string | undefined;
+};
+
+/**
+ * The ONLY path that changes quantityOnHand. Every change writes a matching movement,
+ * and callers must validate first — a change that would go negative is refused.
+ */
+export function applyInventoryChange(d: Db, c: InventoryChange): Db {
+  const existing = findInventory(d, c.branchId, c.productId);
+  const onHand = (existing?.quantityOnHand ?? 0) + c.delta;
+  if (onHand < 0) throw new Error("Inventory can never become negative");
+  const record: InventoryRecord = existing
+    ? { ...existing, quantityOnHand: onHand, quantityReserved: Math.min(existing.quantityReserved, onHand), lastUpdated: c.at }
+    : { id: `inv-${c.branchId.slice(-3)}-${c.productId.slice(-3)}`, tenantId: d.tenant.id, branchId: c.branchId, productId: c.productId, quantityOnHand: onHand, quantityReserved: 0, lowStockThreshold: 10, reorderLevel: 20, lastUpdated: c.at };
+  const movement: InventoryMovement = {
+    id: `mov-${String(d.inventoryMovements.length + 1).padStart(5, "0")}`, tenantId: d.tenant.id, branchId: c.branchId, productId: c.productId,
+    type: c.type, quantity: c.delta, performedBy: c.performedBy, createdAt: c.at,
+    ...(c.referenceType ? { referenceType: c.referenceType } : {}), ...(c.referenceId ? { referenceId: c.referenceId } : {}), ...(c.note ? { note: c.note } : {}),
+  };
+  return {
+    ...d,
+    inventory: existing ? d.inventory.map((i) => (i.id === existing.id ? record : i)) : [...d.inventory, record],
+    inventoryMovements: [...d.inventoryMovements, movement],
+  };
+}
+
+export type AddStockInput = { branchId: string; productId: string; quantity: number; note: string };
+const labels = (d: Db, branchId: string, productId: string) => `${d.branches.find((b) => b.id === branchId)?.name} · ${d.products.find((p) => p.id === productId)?.name}`;
+
+export const mockInventoryService = {
+  async addStock(input: AddStockInput, actorId: string): Promise<Result<InventoryRecord>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    const errors: FieldErrors = {};
+    if (!scope.canManageStock) return { ok: false, errors: { form: "Only storekeepers can add stock" } };
+    const branch = current.branches.find((b) => b.id === input.branchId);
+    if (!branch) errors.branchId = "Select a branch";
+    else if (branch.status !== "active") errors.branchId = "Stock can only be added to active branches";
+    else if (scope.branchIds && !scope.branchIds.includes(branch.id)) errors.branchId = "You can only add stock to your branch";
+    if (!current.products.some((p) => p.id === input.productId)) errors.productId = "Select a product";
+    if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Enter a whole number greater than zero";
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const at = nowOnReferenceDay(current);
+    setDb((d) => ({ ...applyInventoryChange(d, { ...input, delta: input.quantity, type: "stock_added", referenceType: "manual", performedBy: actorId, at, note: input.note.trim() || undefined }), activities: [activity(d, actorId, "Stock added", `${labels(d, input.branchId, input.productId)} · +${input.quantity}`), ...d.activities] }));
+    return { ok: true, data: findInventory(getDb(), input.branchId, input.productId)! };
+  },
+  /** Stock count correction: sets on-hand to the counted quantity and records the delta. */
+  async adjustStock(inventoryId: string, countedQuantity: number, reason: string, actorId: string): Promise<Result<InventoryRecord>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    const inv = current.inventory.find((i) => i.id === inventoryId);
+    if (!scope.canManageStock || !inv || (scope.branchIds && !scope.branchIds.includes(inv.branchId))) return { ok: false, errors: { form: "You cannot adjust this stock record" } };
+    if (!Number.isInteger(countedQuantity) || countedQuantity < 0) return { ok: false, errors: { quantity: "Enter a whole number of zero or more" } };
+    if (countedQuantity < inv.quantityReserved) return { ok: false, errors: { quantity: `Cannot go below the ${inv.quantityReserved} reserved units` } };
+    if (countedQuantity === inv.quantityOnHand) return { ok: false, errors: { quantity: "Counted quantity matches current stock" } };
+    if (!reason.trim()) return { ok: false, errors: { reason: "Give a reason for the adjustment" } };
+    const at = nowOnReferenceDay(current);
+    setDb((d) => ({ ...applyInventoryChange(d, { branchId: inv.branchId, productId: inv.productId, delta: countedQuantity - inv.quantityOnHand, type: "adjustment", referenceType: "manual", performedBy: actorId, at, note: reason.trim() }), activities: [activity(d, actorId, "Stock adjusted", `${labels(d, inv.branchId, inv.productId)} · ${inv.quantityOnHand} → ${countedQuantity}`), ...d.activities] }));
+    return { ok: true, data: getDb().inventory.find((i) => i.id === inventoryId)! };
+  },
+};
+
+// ---------- stock requests ----------
+export type StockRequestInput = { branchId: string; productId: string; quantity: number; note: string };
+function updateRequest(d: Db, id: string, patch: Partial<StockRequest>): Db {
+  return { ...d, stockRequests: d.stockRequests.map((r) => (r.id === id ? { ...r, ...patch } : r)) };
+}
+function reviewable(db: Db, id: string, actorId: string, perm: "canReviewRequests" | "canFulfillRequests") {
+  const scope = getAccessScope(db, actorId);
+  const req = db.stockRequests.find((r) => r.id === id);
+  if (!req) return { error: "Stock request not found" } as const;
+  if (!scope[perm] || (scope.branchIds && !scope.branchIds.includes(req.branchId))) return { error: "You don't have permission for this action" } as const;
+  return { req } as const;
+}
+
 export const mockStockRequestService = {
-  async approve(id: string, actorId: string) {
-    const req = getDb().stockRequests.find((r) => r.id === id);
-    if (!req) return;
-    setDb((d) => {
-      const branch = d.branches.find((b) => b.id === req.branchId);
-      const product = d.products.find((pr) => pr.id === req.productId);
-      return { ...d, stockRequests: d.stockRequests.map((r) => (r.id === id ? { ...r, status: "approved" } : r)), activities: [activity(d, actorId, "Stock request approved", `${branch?.name} · ${product?.name}`), ...d.activities] };
-    });
+  async create(input: StockRequestInput, actorId: string): Promise<Result<StockRequest>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    if (!scope.canCreateRequests) return { ok: false, errors: { form: "Only sales representatives can submit stock requests" } };
+    const errors: FieldErrors = {};
+    const branch = current.branches.find((b) => b.id === input.branchId);
+    if (!branch || branch.status !== "active") errors.branchId = "Select an active branch";
+    else if (scope.user.branchId !== branch.id) errors.branchId = "You can only request stock for your own branch";
+    if (!current.products.some((p) => p.id === input.productId)) errors.productId = "Select a product";
+    else if (branch && !findInventory(current, branch.id, input.productId)) errors.productId = "This branch does not stock this product";
+    if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Enter a whole number greater than zero";
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const max = Math.max(1000, ...current.stockRequests.map((r) => Number(r.id.split("-")[1]) || 0));
+    const req: StockRequest = {
+      id: `SR-${max + 1}`, tenantId: current.tenant.id, branchId: input.branchId, repId: actorId, productId: input.productId,
+      quantityRequested: input.quantity, status: "pending", priority: "Normal", requestedAt: nowOnReferenceDay(current),
+      ...(input.note.trim() ? { note: input.note.trim() } : {}),
+    };
+    setDb((d) => ({ ...d, stockRequests: [req, ...d.stockRequests], activities: [activity(d, actorId, "Stock request submitted", `${labels(d, req.branchId, req.productId)} · ${req.quantityRequested} units`), ...d.activities] }));
+    return { ok: true, data: req };
+  },
+  /** Pending → Approved. Never touches inventory. */
+  async approve(id: string, actorId: string): Promise<Result<StockRequest>> {
+    await latency();
+    const current = getDb();
+    const check = reviewable(current, id, actorId, "canReviewRequests");
+    if ("error" in check) return { ok: false, errors: { form: check.error } };
+    if (check.req.status !== "pending") return { ok: false, errors: { form: "Only pending requests can be approved" } };
+    const at = nowOnReferenceDay(current);
+    setDb((d) => ({ ...updateRequest(d, id, { status: "approved", quantityApproved: check.req.quantityRequested, approvedAt: at, approvedBy: actorId, processedBy: actorId }), activities: [activity(d, actorId, "Stock request approved", `${id} · ${labels(d, check.req.branchId, check.req.productId)}`), ...d.activities] }));
+    return { ok: true, data: getDb().stockRequests.find((r) => r.id === id)! };
+  },
+  /** Pending → Rejected. The record is kept for history. */
+  async reject(id: string, reason: string, actorId: string): Promise<Result<StockRequest>> {
+    await latency();
+    const current = getDb();
+    const check = reviewable(current, id, actorId, "canReviewRequests");
+    if ("error" in check) return { ok: false, errors: { form: check.error } };
+    if (check.req.status !== "pending") return { ok: false, errors: { form: "Only pending requests can be rejected" } };
+    if (!reason.trim()) return { ok: false, errors: { reason: "A rejection reason is required" } };
+    setDb((d) => ({ ...updateRequest(d, id, { status: "rejected", rejectedAt: nowOnReferenceDay(d), processedBy: actorId, rejectionReason: reason.trim() }), activities: [activity(d, actorId, "Stock request rejected", `${id} · ${reason.trim()}`), ...d.activities] }));
+    return { ok: true, data: getDb().stockRequests.find((r) => r.id === id)! };
+  },
+  /** Approved / Partially fulfilled → (Partially) Fulfilled. The only step that deducts stock. */
+  async fulfill(id: string, quantity: number, actorId: string): Promise<Result<StockRequest>> {
+    await latency();
+    const current = getDb();
+    const check = reviewable(current, id, actorId, "canFulfillRequests");
+    if ("error" in check) return { ok: false, errors: { form: check.error } };
+    const req = check.req;
+    if (req.status !== "approved" && req.status !== "partially_fulfilled") return { ok: false, errors: { form: "Only approved requests can be fulfilled" } };
+    const inv = findInventory(current, req.branchId, req.productId);
+    const available = inv ? getAvailable(inv) : 0;
+    const outstanding = getRequestOutstanding(req);
+    if (!Number.isInteger(quantity) || quantity <= 0) return { ok: false, errors: { quantity: "Enter a whole number greater than zero" } };
+    if (quantity > available) return { ok: false, errors: { quantity: "Insufficient stock. Quantity cannot exceed available stock." } };
+    if (quantity > outstanding) return { ok: false, errors: { quantity: `Only ${outstanding} units are outstanding on this request` } };
+    const at = nowOnReferenceDay(current);
+    const fulfilled = (req.quantityFulfilled ?? 0) + quantity;
+    const status = fulfilled >= (req.quantityApproved ?? req.quantityRequested) ? "fulfilled" : "partially_fulfilled";
+    const rep = current.users.find((u) => u.id === req.repId)?.name;
+    setDb((d) => ({
+      ...updateRequest(applyInventoryChange(d, { branchId: req.branchId, productId: req.productId, delta: -quantity, type: "stock_issued", referenceType: "stock_request", referenceId: req.id, performedBy: actorId, at, note: `Issued to ${rep}` }), id, { status, quantityFulfilled: fulfilled, fulfilledAt: at, fulfilledBy: actorId, processedBy: actorId }),
+      activities: [activity(d, actorId, status === "fulfilled" ? "Stock request fulfilled" : "Stock request partially fulfilled", `${id} · ${quantity} units to ${rep}`), ...d.activities],
+    }));
+    return { ok: true, data: getDb().stockRequests.find((r) => r.id === id)! };
   },
 };
 
@@ -126,3 +272,4 @@ export const mockStockRequestService = {
 export const branchService = mockBranchService;
 export const salesService = mockSalesService;
 export const stockRequestService = mockStockRequestService;
+export const inventoryService = mockInventoryService;
