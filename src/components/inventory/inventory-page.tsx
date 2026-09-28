@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Boxes, Eye, History, Layers, MoreHorizontal, Package, PackageX, Plus, SlidersHorizontal, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Eye, History, Layers, MoreHorizontal, Package, PackageX, Plus, SlidersHorizontal, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -147,7 +147,6 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} scope={scope} defaults={addDefaults} />
       <AdjustStockDialog record={adjusting?.record ?? null} productName={adjusting?.product.name ?? ""} onClose={() => setAdjusting(null)} actorId={userId} />
       <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={branch === ALL ? undefined : branch} />
-      <span className="hidden"><Boxes /></span>
     </AppShell>
   );
 }
