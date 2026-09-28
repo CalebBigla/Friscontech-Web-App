@@ -19,3 +19,4 @@
 - Inventory/stock-request math lives in `src/lib/inventory-calculations.ts` (available = onHand − reserved, status, value, availability, timelines); so stock numbers are never computed in components.
 - `applyInventoryChange` in `src/services/services.ts` is the only writer of `quantityOnHand` and always appends an `inventoryMovements` row, refusing negatives; so every stock change is traceable (sales, stock issues, additions, adjustments).
 - Stock requests: approval never touches stock; only fulfillment deducts, with `partially_fulfilled` when issued < approved; so the workflow stays auditable.
+- Role-specific navigation lives in `app-shell.tsx` (`sectionsFor`), pages are gated with `RoleGate` and data comes from role-scoped selectors (`getAccessScope`, `lib/audit.ts`); so hidden modules are also unreachable by URL.

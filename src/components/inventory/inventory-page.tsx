@@ -80,7 +80,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
     : <EmptyState title="No inventory records found." detail="Try a different search or clear the filters." />;
 
   return (
-    <AppShell title="Inventory" subtitle="Monitor stock levels, availability, and inventory movement across your branches."
+    <AppShell title="Inventory" subtitle={simple ? "Products available to you" : "Monitor stock levels, availability, and inventory movement across your branches."}
       actions={<div className="flex gap-2">
         {!simple && <Button variant="outline" onClick={() => setMovesOpen(true)}><History className="size-4" /><span className="hidden sm:inline">View Movements</span></Button>}
         {scope.canManageStock && <Button onClick={() => openAdd()}><Plus className="size-4" /><span className="hidden sm:inline">Add Stock</span></Button>}
