@@ -69,10 +69,10 @@ export function SalesPage() {
   );
 
   return (
-    <AppShell title="Sales" subtitle="Track sales activity, revenue and sales performance across your business."
+    <AppShell title={scope.repId ? "My Sales" : "Sales"} subtitle={scope.repId ? "Your personal sales record." : "Track sales activity, revenue and sales performance across your business."}
       actions={scope.canRecordSales && <Button onClick={() => setRecordOpen(true)}><Plus className="size-4" /><span className="hidden sm:inline">Record Sale</span></Button>}>
       <div className="mb-5 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
-        <div><h1 className="text-xl font-bold">Sales</h1><p className="mt-1 text-xs text-muted-foreground">Track sales activity, revenue and sales performance across your business · {rangeLabel}</p></div>
+        <div><h1 className="text-xl font-bold">{scope.repId ? "My Sales" : "Sales"}</h1><p className="mt-1 text-xs text-muted-foreground">{scope.repId ? "Only sales you recorded" : "Track sales activity, revenue and sales performance across your business"} · {rangeLabel}</p></div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="grid grid-cols-4 rounded-md border border-border bg-card p-1">{periods.map((p) => <Button key={p.key} size="sm" variant={period === p.key ? "default" : "ghost"} onClick={() => update({ period: p.key === "month" ? undefined : p.key, ...(p.key === "custom" ? { from: search.from ?? range.from, to: search.to ?? range.to } : { from: undefined, to: undefined }) })}>{p.label}</Button>)}</div>
           {period === "custom" && <div className="flex items-center gap-2"><Input type="date" aria-label="From date" max={today} value={range.from} onChange={(e) => update({ from: e.target.value })} className="h-9 bg-card text-xs" /><span className="text-xs text-muted-foreground">to</span><Input type="date" aria-label="To date" max={today} value={range.to} onChange={(e) => update({ to: e.target.value })} className="h-9 bg-card text-xs" /></div>}

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RoleGate } from "@/components/app-shell";
 import { InventoryDetailPage } from "@/components/inventory/inventory-detail-page";
 
 export const Route = createFileRoute("/inventory/$inventoryId")({
@@ -17,5 +18,5 @@ export const Route = createFileRoute("/inventory/$inventoryId")({
 
 function InventoryDetailRoute() {
   const { inventoryId } = Route.useParams();
-  return <InventoryDetailPage inventoryId={inventoryId} />;
+  return <RoleGate allow={(s) => s.canViewInventoryAdmin} title="Inventory item" message="Stock history is managed by your storekeeper. Use Inventory to see what is available."><InventoryDetailPage inventoryId={inventoryId} /></RoleGate>;
 }

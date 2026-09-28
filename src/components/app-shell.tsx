@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  Activity, BarChart3, Bell, Boxes, ClipboardCheck, ClipboardList, LayoutDashboard, Menu, Package,
+  Activity, ArrowLeftRight, BarChart3, Bell, Boxes, ClipboardCheck, ClipboardList, LayoutDashboard, Menu, Package,
   Settings, ShoppingCart, Store, Target, Users, X, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,11 +9,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useDb } from "@/services/mock-store";
-import { getAccessScope, setCurrentUserId, useCurrentUserId } from "@/lib/session";
+import { getAccessScope, setCurrentUserId, useCurrentUserId, type AccessScope } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavItem = { label: string; icon: LucideIcon; to?: "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests"; ownerOnly?: boolean; needsSales?: boolean };
-const sections: { title: string; items: NavItem[] }[] = [
+type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/stock-movements" | "/audit-log";
+type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
+type NavSection = { title: string; items: NavItem[] };
+const managementSections: NavSection[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/", ownerOnly: true }] },
   { title: "Operations", items: [
     { label: "Branches", icon: Store, to: "/branches" },
@@ -25,10 +27,23 @@ const sections: { title: string; items: NavItem[] }[] = [
   { title: "Management", items: [{ label: "Products", icon: Package }, { label: "Users", icon: Users }, { label: "Reports", icon: BarChart3 }] },
   { title: "System", items: [{ label: "Audit Log", icon: ClipboardCheck }, { label: "Settings", icon: Settings }] },
 ];
+const repSections: NavSection[] = [
+  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
+  { title: "Sales", items: [{ label: "My Sales", icon: ShoppingCart, to: "/sales" }, { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
+  { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }] },
+  { title: "Accountability", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }] },
+];
+const storekeeperSections: NavSection[] = [
+  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
+  { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }, { label: "Products", icon: Package, to: "/products" }, { label: "Stock Movements", icon: ArrowLeftRight, to: "/stock-movements" }] },
+  { title: "Operations", items: [{ label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
+  { title: "Accountability", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }] },
+];
+const sectionsFor = (role: string) => role === "sales_rep" ? repSections : role === "storekeeper" ? storekeeperSections : managementSections;
 
 const demoUserIds = ["user-001", "user-002", "user-022", "user-010"];
 
-export function AppShell({ title, subtitle, headerExtra, actions, children }: { title: string; subtitle?: string; headerExtra?: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function AppShell({ title, subtitle, headerExtra, actions, children }: { title: string; subtitle?: string | undefined; headerExtra?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const db = useDb();
   const userId = useCurrentUserId();
@@ -47,7 +62,7 @@ export function AppShell({ title, subtitle, headerExtra, actions, children }: { 
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="size-4" /></Button>
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
-          {sections.map((section) => {
+          {sectionsFor(scope.user.role).map((section) => {
             const items = section.items.filter((i) => (!i.ownerOnly || scope.user.role === "owner") && (!i.needsSales || scope.canViewSales));
             if (!items.length) return null;
             return (
@@ -103,6 +118,14 @@ export function AppShell({ title, subtitle, headerExtra, actions, children }: { 
       </div>
     </div>
   );
+}
+
+/** Renders children only when the current role may use the module; the page itself never mounts otherwise. */
+export function RoleGate({ allow, title, message, children }: { allow: (scope: AccessScope) => boolean; title: string; message: string; children: ReactNode }) {
+  const db = useDb();
+  const scope = getAccessScope(db, useCurrentUserId());
+  if (!allow(scope)) return <AppShell title={title}><RestrictedNotice message={message} /></AppShell>;
+  return <>{children}</>;
 }
 
 export function RestrictedNotice({ message }: { message: string }) {

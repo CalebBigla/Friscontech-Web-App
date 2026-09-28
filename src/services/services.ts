@@ -2,12 +2,12 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Sale, StockRequest } from "@/data/mock-db";
+import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, Sale, StockRequest } from "@/data/mock-db";
 import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
 import { getAccessScope } from "@/lib/session";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
@@ -103,6 +103,10 @@ export const mockSalesService = {
   async record(input: SaleInput, actorId: string): Promise<Result<Sale>> {
     await latency();
     const current = getDb();
+    const actor = getAccessScope(current, actorId);
+    // Sales reps always record against themselves, their branch and tenant.
+    if (actor.repId) input = { ...input, salesRepId: actor.repId, branchId: actor.user.branchId ?? input.branchId, unitPrice: current.products.find((p) => p.id === input.productId)?.unitPrice ?? input.unitPrice };
+    if (!actor.canRecordSales) return { ok: false, errors: { form: "You cannot record sales" } };
     const errors = validateSale(current, input);
     if (Object.keys(errors).length) return { ok: false, errors };
     const n = current.sales.length + 1;
@@ -269,6 +273,37 @@ export const mockStockRequestService = {
 };
 
 // Swap points for the live API.
+// ---------- products ----------
+export type ProductInput = { name: string; sku: string; category: string; unit: string; unitPrice: number; unitCost: number; lowStockThreshold: number };
+export const mockProductService = {
+  /** Adds to the shared catalogue and opens a zero-stock inventory record at the storekeeper's branch. */
+  async create(input: ProductInput, actorId: string): Promise<Result<Product>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    if (!scope.canManageProducts) return { ok: false, errors: { form: "Only storekeepers can add products" } };
+    const errors: FieldErrors = {};
+    const sku = input.sku.trim().toUpperCase();
+    if (!input.name.trim()) errors.name = "Enter a product name";
+    if (!sku) errors.sku = "Enter a SKU";
+    else if (current.products.some((p) => p.sku.toUpperCase() === sku)) errors.sku = "This SKU already exists";
+    if (!input.category.trim()) errors.category = "Enter a category";
+    if (!input.unit.trim()) errors.unit = "Enter a unit";
+    if (!(input.unitPrice > 0)) errors.unitPrice = "Enter a selling price above zero";
+    if (!(input.unitCost >= 0)) errors.unitCost = "Enter a unit cost of zero or more";
+    else if (input.unitCost > input.unitPrice) errors.unitCost = "Unit cost cannot exceed selling price";
+    if (!Number.isInteger(input.lowStockThreshold) || input.lowStockThreshold < 0) errors.threshold = "Enter a whole number of zero or more";
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const product: Product = { id: `prod-${String(current.products.length + 1).padStart(3, "0")}-${Date.now().toString(36)}`, tenantId: current.tenant.id, name: input.name.trim(), sku, category: input.category.trim(), unit: input.unit.trim(), unitPrice: input.unitPrice, unitCost: input.unitCost };
+    const at = nowOnReferenceDay(current);
+    const branchIds = scope.branchIds ?? current.branches.filter((b) => b.status === "active").map((b) => b.id);
+    const records: InventoryRecord[] = branchIds.map((branchId, i) => ({ id: `inv-${product.id}-${i}`, tenantId: current.tenant.id, branchId, productId: product.id, quantityOnHand: 0, quantityReserved: 0, lowStockThreshold: input.lowStockThreshold, reorderLevel: input.lowStockThreshold * 2, lastUpdated: at }));
+    setDb((d) => ({ ...d, products: [...d.products, product], inventory: [...d.inventory, ...records], activities: [activity(d, actorId, "Product added", `${product.name} · ${product.sku}`), ...d.activities] }));
+    return { ok: true, data: product };
+  },
+};
+
+export const productService = mockProductService;
 export const branchService = mockBranchService;
 export const salesService = mockSalesService;
 export const stockRequestService = mockStockRequestService;
