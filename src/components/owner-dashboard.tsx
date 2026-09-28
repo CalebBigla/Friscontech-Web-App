@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   Activity,
-  AlertTriangle,
   BarChart3,
   Bell,
   Boxes,
@@ -36,6 +35,8 @@ import {
   weeklyRevenue,
   type Period,
 } from "@/data/owner-dashboard";
+
+const metricIcons = [CircleDollarSign, Building2, Users, Target] as const;
 
 const navigation = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -111,7 +112,7 @@ export function OwnerDashboard() {
 
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric, index) => {
-              const icons = [CircleDollarSign, Building2, Users, Target]; const Icon = icons[index];
+              const Icon = metricIcons[index] ?? CircleDollarSign;
               return <article key={metric.label} className="rounded-lg border border-border bg-card p-5 shadow-panel">
                 <div className="flex items-start justify-between"><span className={`metric-icon metric-icon-${metric.tone}`}><Icon className="size-5" /></span><span className={`status status-${metric.tone}`}>{metric.change}</span></div>
                 <p className="mt-5 text-xs text-muted-foreground">{metric.label} · {period}</p><p className="mt-1 text-2xl font-bold">{metric.value}</p><p className="mt-2 text-[11px] text-muted-foreground">{metric.detail}</p>
