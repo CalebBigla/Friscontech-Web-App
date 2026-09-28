@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RoleGate } from "@/components/app-shell";
 import { BranchesPage } from "@/components/branches/branches-page";
 
 export const Route = createFileRoute("/branches/")({
@@ -12,5 +13,9 @@ export const Route = createFileRoute("/branches/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: BranchesPage,
+  component: BranchesRoute,
 });
+
+function BranchesRoute() {
+  return <RoleGate allow={(s) => s.canViewBranches} title="Branches" message="Branch management is not part of your role."><BranchesPage /></RoleGate>;
+}
