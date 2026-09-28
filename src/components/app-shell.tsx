@@ -43,7 +43,7 @@ const sectionsFor = (role: string) => role === "sales_rep" ? repSections : role 
 
 const demoUserIds = ["user-001", "user-002", "user-022", "user-010"];
 
-export function AppShell({ title, subtitle, headerExtra, actions, children }: { title: string; subtitle?: string; headerExtra?: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function AppShell({ title, subtitle, headerExtra, actions, children }: { title: string; subtitle?: string | undefined; headerExtra?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const db = useDb();
   const userId = useCurrentUserId();
