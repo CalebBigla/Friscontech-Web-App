@@ -106,16 +106,16 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
             options={[["status:1", "Needs attention first"], ["product:1", "Product A–Z"], ["available:-1", "Most available"], ["available:1", "Least available"], ["updated:-1", "Recently updated"]].map(([value = "", label = ""]) => ({ value, label }))} /></div>
         </div>}>
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[1080px] text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead><tr className="text-[10px] uppercase text-muted-foreground">
-              <SortHead k="product" label="Product" /><th className="px-4 py-3">SKU</th><th className="px-4 py-3">Branch</th>
+              <SortHead k="product" label="Product" /><th className="hidden px-4 py-3 xl:table-cell">SKU</th><th className="px-4 py-3">Branch</th>
               <th className="px-4 py-3 text-right">On hand</th><th className="px-4 py-3 text-right">Reserved</th><SortHead k="available" label="Available" right /><th className="px-4 py-3 text-right">Threshold</th>
               <SortHead k="status" label="Status" /><SortHead k="updated" label="Last updated" /><th className="px-4 py-3 text-right">Actions</th>
             </tr></thead>
             <tbody>{shown.map((r) => (
               <tr key={r.record.id} onClick={() => open(r.record)} className="cursor-pointer border-t border-border text-xs transition-colors hover:bg-muted/60">
-                <td className="px-4 py-3.5"><p className="font-bold">{r.product.name}</p><p className="text-[11px] text-muted-foreground">{r.product.category} · {formatNaira(r.product.unitPrice)}</p></td>
-                <td className="px-4 py-3.5 font-mono text-[11px] text-muted-foreground">{r.product.sku}</td>
+                <td className="px-4 py-3.5"><p className="font-bold">{r.product.name}</p><p className="text-[11px] text-muted-foreground"><span className="font-mono xl:hidden">{r.product.sku} · </span>{r.product.category} · {formatNaira(r.product.unitPrice)}</p></td>
+                <td className="hidden px-4 py-3.5 font-mono text-[11px] text-muted-foreground xl:table-cell">{r.product.sku}</td>
                 <td className="px-4 py-3.5">{r.branch.name}</td>
                 <td className="px-4 py-3.5 text-right font-semibold">{formatNumber(r.record.quantityOnHand)}</td>
                 <td className="px-4 py-3.5 text-right text-muted-foreground">{r.record.quantityReserved}</td>
