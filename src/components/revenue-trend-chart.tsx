@@ -21,7 +21,7 @@ export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
   return (
     <div className="mt-5">
       <ChartContainer config={chartConfig} className="h-52 w-full aspect-auto sm:h-56">
-        <ComposedChart data={data} margin={{ top: 14, right: 8, bottom: 0, left: -16 }}>
+        <ComposedChart data={data} margin={{ top: 14, right: 8, bottom: 0, left: 8 }}>
           <defs>
             <linearGradient id="revenue-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.18} />
@@ -34,7 +34,7 @@ export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
             axisLine={false}
             tickLine={false}
             tickMargin={8}
-            width={58}
+            width={62}
             tickFormatter={(value: number) => formatCompactNaira(value)}
           />
           <ChartTooltip

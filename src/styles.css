@@ -175,16 +175,21 @@
   p, td, label, input, textarea, select {
     font-weight: 400;
   }
+
+  p.text-muted-foreground {
+    font-family: var(--font-light-copy);
+    font-weight: 300;
+  }
 }
 
 @layer components {
-  .panel-title { @apply text-xs font-bold uppercase; }
+  .panel-title { @apply text-xs font-semibold uppercase; }
   .metric-icon { @apply grid size-10 place-items-center rounded-md; }
   .metric-icon-success { @apply bg-success-soft text-success; }
   .metric-icon-brand { @apply bg-brand-soft text-primary; }
   .metric-icon-violet { @apply bg-violet-soft text-violet; }
   .metric-icon-warning { @apply bg-warning-soft text-warning; }
-  .status { @apply inline-flex items-center rounded-sm px-2 py-1 text-[9px] font-bold uppercase; }
+  .status { @apply inline-flex items-center rounded-sm px-2 py-1 text-[9px] font-semibold uppercase; }
   .status-success { @apply bg-success-soft text-success; }
   .status-brand { @apply bg-brand-soft text-primary; }
   .status-violet { @apply bg-violet-soft text-violet; }
