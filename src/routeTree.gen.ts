@@ -13,6 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SalesRouteImport } from './routes/sales'
 import { Route as BranchesIndexRouteImport } from './routes/branches.index'
 import { Route as BranchesBranchIdRouteImport } from './routes/branches.$branchId'
+import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
+import { Route as InventoryInventoryIdRouteImport } from './routes/inventory.$inventoryId'
+import { Route as StockRequestsIndexRouteImport } from './routes/stock-requests.index'
+import { Route as StockRequestsRequestIdRouteImport } from './routes/stock-requests.$requestId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,39 +38,100 @@ const BranchesBranchIdRoute = BranchesBranchIdRouteImport.update({
   path: '/branches/$branchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InventoryIndexRoute = InventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryInventoryIdRoute = InventoryInventoryIdRouteImport.update({
+  id: '/inventory/$inventoryId',
+  path: '/inventory/$inventoryId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StockRequestsIndexRoute = StockRequestsIndexRouteImport.update({
+  id: '/stock-requests/',
+  path: '/stock-requests/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StockRequestsRequestIdRoute = StockRequestsRequestIdRouteImport.update({
+  id: '/stock-requests/$requestId',
+  path: '/stock-requests/$requestId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sales': typeof SalesRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
+  '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/branches/': typeof BranchesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/stock-requests/': typeof StockRequestsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sales': typeof SalesRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
+  '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/branches': typeof BranchesIndexRoute
+  '/inventory': typeof InventoryIndexRoute
+  '/stock-requests': typeof StockRequestsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sales': typeof SalesRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
+  '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/branches/': typeof BranchesIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/stock-requests/': typeof StockRequestsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sales' | '/branches/$branchId' | '/branches/'
+  fullPaths:
+    | '/'
+    | '/sales'
+    | '/branches/$branchId'
+    | '/inventory/$inventoryId'
+    | '/stock-requests/$requestId'
+    | '/branches/'
+    | '/inventory/'
+    | '/stock-requests/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sales' | '/branches/$branchId' | '/branches'
-  id: '__root__' | '/' | '/sales' | '/branches/$branchId' | '/branches/'
+  to:
+    | '/'
+    | '/sales'
+    | '/branches/$branchId'
+    | '/inventory/$inventoryId'
+    | '/stock-requests/$requestId'
+    | '/branches'
+    | '/inventory'
+    | '/stock-requests'
+  id:
+    | '__root__'
+    | '/'
+    | '/sales'
+    | '/branches/$branchId'
+    | '/inventory/$inventoryId'
+    | '/stock-requests/$requestId'
+    | '/branches/'
+    | '/inventory/'
+    | '/stock-requests/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SalesRoute: typeof SalesRoute
   BranchesBranchIdRoute: typeof BranchesBranchIdRoute
+  InventoryInventoryIdRoute: typeof InventoryInventoryIdRoute
+  StockRequestsRequestIdRoute: typeof StockRequestsRequestIdRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
+  InventoryIndexRoute: typeof InventoryIndexRoute
+  StockRequestsIndexRoute: typeof StockRequestsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +164,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BranchesBranchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inventory/': {
+      id: '/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof InventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/$inventoryId': {
+      id: '/inventory/$inventoryId'
+      path: '/inventory/$inventoryId'
+      fullPath: '/inventory/$inventoryId'
+      preLoaderRoute: typeof InventoryInventoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stock-requests/': {
+      id: '/stock-requests/'
+      path: '/stock-requests'
+      fullPath: '/stock-requests/'
+      preLoaderRoute: typeof StockRequestsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stock-requests/$requestId': {
+      id: '/stock-requests/$requestId'
+      path: '/stock-requests/$requestId'
+      fullPath: '/stock-requests/$requestId'
+      preLoaderRoute: typeof StockRequestsRequestIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,7 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SalesRoute: SalesRoute,
   BranchesBranchIdRoute: BranchesBranchIdRoute,
+  InventoryInventoryIdRoute: InventoryInventoryIdRoute,
+  StockRequestsRequestIdRoute: StockRequestsRequestIdRoute,
   BranchesIndexRoute: BranchesIndexRoute,
+  InventoryIndexRoute: InventoryIndexRoute,
+  StockRequestsIndexRoute: StockRequestsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
