@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep Phase 1 frontend-only with tenant-scoped mock records in `src/data`; this preserves realistic relationships while deferring persistence.
+- Keep dashboard controls reusable through shared UI components; this prevents role dashboards from diverging as later phases are added.
