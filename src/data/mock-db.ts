@@ -143,8 +143,8 @@ function seedSales(): Sale[] {
 }
 
 const branchTargetBase: Record<string, number> = {
-  "branch-001": 45_000_000, "branch-002": 44_000_000, "branch-003": 42_000_000,
-  "branch-004": 38_000_000, "branch-005": 36_000_000, "branch-006": 26_000_000,
+  "branch-001": 48_000_000, "branch-002": 44_000_000, "branch-003": 45_000_000,
+  "branch-004": 32_000_000, "branch-005": 40_000_000, "branch-006": 26_000_000,
 };
 
 function seedTargets(): Target[] {
@@ -194,7 +194,7 @@ export function createSeedDb(): Db {
     activities: [
       { id: "act-003", tenantId: T, action: "Stock request approved", subject: "Ikeja Branch · Smart Watch S9", actorId: "user-002", createdAt: "2026-09-28T09:09:00" },
       { id: "act-002", tenantId: T, action: "New sales rep added", subject: "Lekki Branch · Chidi Eze", actorId: "user-004", createdAt: "2026-09-28T08:14:00" },
-      { id: "act-001", tenantId: T, action: "Monthly target updated", subject: "Ajah Branch · ₦38m", actorId: "user-001", createdAt: "2026-09-28T07:14:00" },
+      { id: "act-001", tenantId: T, action: "Monthly target updated", subject: "Ajah Branch · ₦32m", actorId: "user-001", createdAt: "2026-09-28T07:14:00" },
     ],
     escalations: [
       { id: "esc-001", tenantId: T, branchId: "branch-004", type: "Target dispute", detail: "Q4 target review requested by manager", createdAt: "2026-09-28T07:14:00", tone: "danger", status: "open" },
