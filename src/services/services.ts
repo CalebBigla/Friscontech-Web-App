@@ -103,6 +103,10 @@ export const mockSalesService = {
   async record(input: SaleInput, actorId: string): Promise<Result<Sale>> {
     await latency();
     const current = getDb();
+    const actor = getAccessScope(current, actorId);
+    // Sales reps always record against themselves, their branch and tenant.
+    if (actor.repId) input = { ...input, salesRepId: actor.repId, branchId: actor.user.branchId ?? input.branchId, unitPrice: current.products.find((p) => p.id === input.productId)?.unitPrice ?? input.unitPrice };
+    if (!actor.canRecordSales) return { ok: false, errors: { form: "You cannot record sales" } };
     const errors = validateSale(current, input);
     if (Object.keys(errors).length) return { ok: false, errors };
     const n = current.sales.length + 1;
