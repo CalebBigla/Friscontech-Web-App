@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import { Search, type LucideIcon } from "lucide-react";
+import type { StockRequestStatus } from "@/data/mock-db";
+import { inventoryStatusLabel, requestStatusLabel, type InventoryStatus } from "@/lib/inventory-calculations";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PerformanceBand } from "@/lib/calculations";
 import { bandLabel } from "@/lib/calculations";
@@ -46,4 +48,23 @@ export function EmptyState({ title, detail }: { title: string; detail?: string }
 }
 export function FieldError({ message }: { message?: string | undefined }) {
   return message ? <p className="mt-1 text-[11px] font-medium text-destructive">{message}</p> : null;
+}
+
+const stockTone: Record<InventoryStatus, string> = { in_stock: "status-success", low_stock: "status-warning", out_of_stock: "status-danger" };
+export function StockStatusBadge({ status }: { status: InventoryStatus }) {
+  return <span className={`status whitespace-nowrap ${stockTone[status]}`}>{inventoryStatusLabel[status]}</span>;
+}
+const requestTone: Record<StockRequestStatus, string> = { pending: "status-warning", approved: "status-brand", partially_fulfilled: "status-violet", fulfilled: "status-success", rejected: "status-danger" };
+export function RequestStatusBadge({ status }: { status: StockRequestStatus }) {
+  return <span className={`status whitespace-nowrap ${requestTone[status]}`}>{requestStatusLabel[status]}</span>;
+}
+export function SearchBox({ value, onChange, placeholder, className = "sm:w-60" }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
+  return (
+    <label className={`flex h-9 items-center gap-2 rounded-md border border-border bg-muted px-3 ${className}`}>
+      <Search className="size-4 text-muted-foreground" /><input value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" placeholder={placeholder} aria-label={placeholder} />
+    </label>
+  );
+}
+export function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="min-w-0"><p className="text-[11px] text-muted-foreground">{label}</p><div className="mt-1 truncate text-sm font-semibold">{children}</div></div>;
 }
