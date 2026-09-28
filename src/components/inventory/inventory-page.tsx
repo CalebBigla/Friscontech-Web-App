@@ -25,6 +25,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
   const scope = getAccessScope(db, userId);
   const navigate = useNavigate();
   const multiBranch = !scope.branchIds;
+  const simple = !scope.canViewInventoryAdmin;
   const [query, setQuery] = useState("");
   const [branch, setBranch] = useState(multiBranch && initialBranch ? initialBranch : ALL);
   const [category, setCategory] = useState(ALL);
@@ -81,17 +82,17 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
   return (
     <AppShell title="Inventory" subtitle="Monitor stock levels, availability, and inventory movement across your branches."
       actions={<div className="flex gap-2">
-        <Button variant="outline" onClick={() => setMovesOpen(true)}><History className="size-4" /><span className="hidden sm:inline">View Movements</span></Button>
+        {!simple && <Button variant="outline" onClick={() => setMovesOpen(true)}><History className="size-4" /><span className="hidden sm:inline">View Movements</span></Button>}
         {scope.canManageStock && <Button onClick={() => openAdd()}><Plus className="size-4" /><span className="hidden sm:inline">Add Stock</span></Button>}
       </div>}>
-      <div className="mb-5"><h1 className="text-xl font-bold">Inventory</h1><p className="mt-1 text-xs text-muted-foreground">Monitor stock levels, availability, and inventory movement across your branches{activeBranch !== ALL ? ` · ${db.branches.find((b) => b.id === activeBranch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
+      <div className="mb-5"><h1 className="text-xl font-bold">{simple ? "Available Products" : "Inventory"}</h1><p className="mt-1 text-xs text-muted-foreground">{simple ? "Products available to you and how much stock is on hand" : "Monitor stock levels, availability, and inventory movement across your branches"}{activeBranch !== ALL ? ` · ${db.branches.find((b) => b.id === activeBranch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
 
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <section className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 ${simple ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
         <MetricCard icon={Package} tone="brand" label="Total products" value={formatNumber(summary.products)} detail="Represented in inventory" />
         <MetricCard icon={Layers} tone="violet" label="Total units" value={formatNumber(summary.units)} detail="On hand in this selection" />
         <MetricCard icon={AlertTriangle} tone="warning" label="Low stock" value={formatNumber(summary.low)} detail="At or below threshold" badge={summary.low ? "Review" : undefined} />
         <MetricCard icon={PackageX} tone="warning" label="Out of stock" value={formatNumber(summary.out)} detail="Zero available units" />
-        <MetricCard icon={Wallet} tone="success" label="Inventory value" value={formatCompactNaira(summary.value)} detail="On hand × unit cost" />
+        {!simple && <MetricCard icon={Wallet} tone="success" label="Inventory value" value={formatCompactNaira(summary.value)} detail="On hand × unit cost" />}
       </section>
 
       <Panel className="mt-4 overflow-hidden" title="Stock levels" subtitle={`${visible.length} of ${rows.length} records`}
@@ -105,6 +106,11 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
           <div className="md:hidden"><FilterSelect label="Sort by" className="w-full" value={`${sort.key}:${sort.dir}`} onChange={(v) => { const [key, dir] = v.split(":"); setSort({ key: key as SortKey, dir: Number(dir) as 1 | -1 }); }}
             options={[["status:1", "Needs attention first"], ["product:1", "Product A–Z"], ["available:-1", "Most available"], ["available:1", "Least available"], ["updated:-1", "Recently updated"]].map(([value = "", label = ""]) => ({ value, label }))} /></div>
         </div>}>
+        {simple && <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left">
+          <thead><tr className="text-[10px] uppercase text-muted-foreground"><SortHead k="product" label="Product" /><th className="px-4 py-3">SKU</th><th className="hidden px-4 py-3 sm:table-cell">Category</th><th className="px-4 py-3 text-right">Selling price</th><SortHead k="available" label="Available" right /><SortHead k="status" label="Status" /></tr></thead>
+          <tbody>{shown.map((r) => <tr key={r.record.id} className="border-t border-border text-xs"><td className="px-4 py-3.5 font-bold">{r.product.name}</td><td className="px-4 py-3.5 font-mono text-[11px] text-muted-foreground">{r.product.sku}</td><td className="hidden px-4 py-3.5 sm:table-cell">{r.product.category}</td><td className="px-4 py-3.5 text-right">{formatNaira(r.product.unitPrice)}</td><td className="px-4 py-3.5 text-right font-bold">{formatNumber(r.available)} <span className="font-normal text-muted-foreground">{r.product.unit}</span></td><td className="px-4 py-3.5"><StockStatusBadge status={r.status} /></td></tr>)}</tbody>
+        </table></div>}
+        {!simple && <>
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[900px] text-left">
             <thead><tr className="text-[10px] uppercase text-muted-foreground">
@@ -138,6 +144,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">Updated {formatDayTime(r.record.lastUpdated, db.tenant.referenceDate)}</p>
           </div>))}</div>
+        </>}
         {visible.length === 0 && empty}
         {pages > 1 && <div className="flex items-center justify-between border-t border-border px-5 py-3 text-xs">
           <span className="text-muted-foreground">Page {Math.min(page, pages)} of {pages}</span>
@@ -147,7 +154,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
 
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} scope={scope} defaults={addDefaults} />
       <AdjustStockDialog record={adjusting?.record ?? null} productName={adjusting?.product.name ?? ""} onClose={() => setAdjusting(null)} actorId={userId} />
-      <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={activeBranch === ALL ? undefined : activeBranch} />
+      {!simple && <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={activeBranch === ALL ? undefined : activeBranch} />}
     </AppShell>
   );
 }
