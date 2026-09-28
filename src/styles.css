@@ -68,6 +68,9 @@
   --color-violet-soft: var(--violet-soft);
   --color-overlay: var(--overlay);
   --color-chart: var(--chart);
+  --color-chart-target: var(--chart-target);
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-light-copy: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --shadow-panel: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent), 0 8px 24px color-mix(in oklab, var(--foreground) 3%, transparent);
 }
 
@@ -114,6 +117,7 @@
   --violet-soft: oklch(0.96 0.035 300);
   --overlay: oklch(0.15 0.02 260 / 45%);
   --chart: oklch(0.72 0.12 257);
+  --chart-target: oklch(0.62 0.025 255);
 }
 
 .dark {
@@ -149,6 +153,7 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --chart-target: oklch(0.72 0.025 255);
 }
 
 @layer base {
@@ -159,8 +164,16 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-sans);
     letter-spacing: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6, strong, th {
+    font-family: var(--font-sans);
+  }
+
+  p, td, label, input, textarea, select {
+    font-weight: 400;
   }
 }
 
@@ -184,4 +197,5 @@
   .inventory-bar-0 { @apply bg-success; }
   .inventory-bar-1 { @apply bg-warning; }
   .inventory-bar-2 { @apply bg-destructive; }
+  .font-light-copy { font-family: var(--font-light-copy); font-weight: 300; }
 }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AppShell, RestrictedNotice } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { useDb } from "@/services/mock-store";
 import { stockRequestService } from "@/services/services";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
@@ -53,7 +54,10 @@ export function OwnerDashboard() {
       { label: "Team members", value: String(team.length), detail: `Across ${active.length} branches`, change: `${db.users.filter((x) => x.role === "sales_rep" && team.includes(x)).length} reps`, tone: "violet" },
       { label: "Target attainment", value: formatPercent(attainment, 0), detail: `${formatCompactNaira(Math.max(target - revenue, 0))} remaining`, change: `${attainment - prevAttainment >= 0 ? "+" : ""}${(attainment - prevAttainment).toFixed(0)}%`, tone: "warning" },
     ];
-    const weekly = getWeeklyRevenueSeries(db, 12);
+    const weekly = getWeeklyRevenueSeries(db, 12).map((week) => ({
+      ...week,
+      target: getTargetForRange(db, { from: week.from, to: week.to }, {}),
+    }));
     const w1 = weekly[weekly.length - 1]?.revenue ?? 0, w0 = weekly[weekly.length - 2]?.revenue ?? 0;
     const inv = getBranchInventoryHealth(db, undefined, activeIds);
     const branchRows = active.map((b) => ({ branch: b, manager: getBranchManager(db, b), perf: getBranchPerformance(db, b.id, month) }))
@@ -69,7 +73,6 @@ export function OwnerDashboard() {
   const requests = db.stockRequests.filter((r) => r.requestedAt.startsWith(today));
   const pending = requests.filter((r) => r.status === "pending").length;
   const openEscalations = db.escalations.filter((e) => e.status === "open");
-  const maxWeek = Math.max(...data.weekly.map((w) => w.revenue), 1);
   const inventory = [
     { label: "Healthy stock", value: data.inv.healthPct, count: `${data.inv.healthy} SKUs` },
     { label: "Low stock", value: data.inv.lowPct, count: `${data.inv.low} items` },
@@ -108,9 +111,8 @@ export function OwnerDashboard() {
 
       <section className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.8fr]">
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
-          <div className="flex items-start justify-between"><div><h2 className="panel-title">Revenue trend</h2><p className="mt-1 text-xs text-muted-foreground">Gross sales across all branches</p></div><span className={`status ${data.weeklyChange >= 0 ? "status-success" : "status-danger"}`}>{data.weeklyChange >= 0 ? "+" : ""}{data.weeklyChange.toFixed(1)}%</span></div>
-          <div className="mt-6 flex h-44 items-end gap-2 border-b border-border pt-4 sm:gap-3">{data.weekly.map((w) => <div key={w.to} className="group relative flex h-full flex-1 items-end" title={`${w.label}: ${formatCompactNaira(w.revenue)}`}><div className="w-full rounded-t-sm bg-chart transition-colors group-hover:bg-primary" style={{ height: `${(w.revenue / maxWeek) * 100}%` }}><span className="sr-only">{w.label}: {formatCompactNaira(w.revenue)}</span></div></div>)}</div>
-          <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">{[0, 3, 6, 9, 11].map((i) => <span key={i}>{data.weekly[i]?.label}</span>)}</div>
+          <div className="flex items-start justify-between gap-4"><div><h2 className="panel-title">Revenue trend</h2><p className="mt-1 font-light-copy text-xs text-muted-foreground">12-week gross sales against prorated targets</p></div><span className={`status ${data.weeklyChange >= 0 ? "status-success" : "status-danger"}`}>{data.weeklyChange >= 0 ? "+" : ""}{data.weeklyChange.toFixed(1)}%</span></div>
+          <RevenueTrendChart data={data.weekly} />
         </article>
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-center justify-between"><h2 className="panel-title">Inventory health</h2><span className={`status ${data.inv.status === "Healthy" ? "status-success" : "status-warning"}`}>{data.inv.status}</span></div>
