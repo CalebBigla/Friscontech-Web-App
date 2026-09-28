@@ -10,7 +10,8 @@ import { FieldError, FilterSelect } from "@/components/shared";
 import { useDb } from "@/services/mock-store";
 import { salesService, type FieldErrors } from "@/services/services";
 import type { AccessScope } from "@/lib/session";
-import { formatNaira } from "@/lib/format";
+import { formatNaira, formatUnits } from "@/lib/format";
+import { getAvailableStock } from "@/lib/inventory-calculations";
 
 type Form = { branchId: string; salesRepId: string; productId: string; quantity: string; unitPrice: string; saleDate: string };
 
@@ -53,7 +54,7 @@ export function RecordSaleDialog({ open, onOpenChange, scope, defaultBranchId }:
             <div><Label className="text-xs">Branch *</Label><div className="mt-1.5"><FilterSelect label="Branch" className="w-full" value={form.branchId || "none"} onChange={(v) => setForm((f) => ({ ...f, branchId: v === "none" ? "" : v, salesRepId: scope.repId ?? "" }))} options={[{ value: "none", label: "Select branch" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]} /></div><FieldError message={errors.branchId} /></div>
             <div><Label className="text-xs">Sales representative *</Label><div className="mt-1.5"><FilterSelect label="Sales representative" className="w-full" value={form.salesRepId || "none"} onChange={(v) => set("salesRepId", v === "none" ? "" : v)} options={[{ value: "none", label: form.branchId ? "Select rep" : "Select a branch first" }, ...reps.map((x) => ({ value: x.id, label: x.name }))]} /></div><FieldError message={errors.salesRepId} /></div>
           </div>
-          <div><Label className="text-xs">Product *</Label><div className="mt-1.5"><FilterSelect label="Product" className="w-full" value={form.productId || "none"} onChange={(v) => { const pr = db.products.find((x) => x.id === v); setForm((f) => ({ ...f, productId: v === "none" ? "" : v, unitPrice: pr ? String(pr.unitPrice) : f.unitPrice })); }} options={[{ value: "none", label: "Select product" }, ...db.products.map((x) => ({ value: x.id, label: `${x.name} · ${formatNaira(x.unitPrice)}` }))]} /></div><FieldError message={errors.productId} /></div>
+          <div><Label className="text-xs">Product *</Label><div className="mt-1.5"><FilterSelect label="Product" className="w-full" value={form.productId || "none"} onChange={(v) => { const pr = db.products.find((x) => x.id === v); setForm((f) => ({ ...f, productId: v === "none" ? "" : v, unitPrice: pr ? String(pr.unitPrice) : f.unitPrice })); }} options={[{ value: "none", label: "Select product" }, ...db.products.map((x) => ({ value: x.id, label: `${x.name} · ${formatNaira(x.unitPrice)}` }))]} /></div><FieldError message={errors.productId} />{form.branchId && form.productId && <p className="mt-1 text-[11px] text-muted-foreground">Available at branch: {formatUnits(getAvailableStock(db, form.productId, form.branchId))}</p>}</div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div><Label htmlFor="sale-qty" className="text-xs">Quantity *</Label><Input id="sale-qty" type="number" min={1} step={1} value={form.quantity} onChange={(e) => set("quantity", e.target.value)} className="mt-1.5 h-9" /><FieldError message={errors.quantity} /></div>
             <div><Label htmlFor="sale-price" className="text-xs">Unit price (₦) *</Label><Input id="sale-price" type="number" min={1} value={form.unitPrice} onChange={(e) => set("unitPrice", e.target.value)} className="mt-1.5 h-9" /><FieldError message={errors.unitPrice} /></div>
