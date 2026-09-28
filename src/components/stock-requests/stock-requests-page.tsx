@@ -44,10 +44,10 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
       const product = db.products.find((p) => p.id === r.productId);
       const repName = db.users.find((u) => u.id === r.repId)?.name ?? "";
       return (!needle || `${r.id} ${repName} ${product?.name} ${product?.sku}`.toLowerCase().includes(needle)) &&
-        (status === ALL || r.status === status) && (branch === ALL || r.branchId === branch) && (rep === ALL || r.repId === rep) &&
+        (status === ALL || r.status === status) && (branch === ALL || !!scope.branchIds || r.branchId === branch) && (rep === ALL || !!scope.repId || r.repId === rep) &&
         (date === ALL || (date === "today" ? withinDays(r.requestedAt, today, 1) : date === "week" ? withinDays(r.requestedAt, today, 7) : monthOf(r.requestedAt) === monthOf(today)));
     });
-  }, [all, db, query, status, branch, rep, date, today]);
+  }, [all, db, query, status, branch, rep, date, today, scope.branchIds, scope.repId]);
   const pages = Math.max(1, Math.ceil(visible.length / PAGE));
   const shown = visible.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
 

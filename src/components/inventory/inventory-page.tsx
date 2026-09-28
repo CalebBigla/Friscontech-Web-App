@@ -36,9 +36,10 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
   const [adjusting, setAdjusting] = useState<InventoryRow | null>(null);
   const [movesOpen, setMovesOpen] = useState(false);
 
-  const filterScope = { branchIds: scope.branchIds, branchId: branch === ALL ? undefined : branch, category: category === ALL ? undefined : category };
+  const activeBranch = multiBranch ? branch : ALL;
+  const filterScope = { branchIds: scope.branchIds, branchId: activeBranch === ALL ? undefined : activeBranch, category: category === ALL ? undefined : category };
   const summary = getInventorySummary(db, filterScope);
-  const rows = useMemo(() => getInventoryRows(db, filterScope), [db, scope.branchIds, branch, category]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => getInventoryRows(db, filterScope), [db, scope.branchIds, activeBranch, category]); // eslint-disable-line react-hooks/exhaustive-deps
   const categories = [...new Set(db.products.map((p) => p.category))].sort();
   const branches = db.branches.filter((b) => !scope.branchIds || scope.branchIds.includes(b.id));
 
@@ -83,7 +84,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
         <Button variant="outline" onClick={() => setMovesOpen(true)}><History className="size-4" /><span className="hidden sm:inline">View Movements</span></Button>
         {scope.canManageStock && <Button onClick={() => openAdd()}><Plus className="size-4" /><span className="hidden sm:inline">Add Stock</span></Button>}
       </div>}>
-      <div className="mb-5"><h1 className="text-xl font-bold">Inventory</h1><p className="mt-1 text-xs text-muted-foreground">Monitor stock levels, availability, and inventory movement across your branches{branch !== ALL ? ` · ${db.branches.find((b) => b.id === branch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
+      <div className="mb-5"><h1 className="text-xl font-bold">Inventory</h1><p className="mt-1 text-xs text-muted-foreground">Monitor stock levels, availability, and inventory movement across your branches{activeBranch !== ALL ? ` · ${db.branches.find((b) => b.id === activeBranch)?.name}` : scope.branchIds ? ` · ${branches[0]?.name ?? ""}` : " · All branches"}</p></div>
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <MetricCard icon={Package} tone="brand" label="Total products" value={formatNumber(summary.products)} detail="Represented in inventory" />
@@ -146,7 +147,7 @@ export function InventoryPage({ initialBranch, initialStatus }: { initialBranch?
 
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} scope={scope} defaults={addDefaults} />
       <AdjustStockDialog record={adjusting?.record ?? null} productName={adjusting?.product.name ?? ""} onClose={() => setAdjusting(null)} actorId={userId} />
-      <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={branch === ALL ? undefined : branch} />
+      <MovementsSheet open={movesOpen} onOpenChange={setMovesOpen} branchIds={scope.branchIds} branchId={activeBranch === ALL ? undefined : activeBranch} />
     </AppShell>
   );
 }
