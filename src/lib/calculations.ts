@@ -91,21 +91,13 @@ export const getBranchStaff = (db: Db, branchId: string): User[] =>
   db.users.filter((x) => x.branchId === branchId && x.status === "active" && x.role !== "owner");
 export const getBranchManager = (db: Db, branch: Branch) => db.users.find((x) => x.id === branch.managerId) ?? null;
 
-export function getBranchInventoryHealth(db: Db, branchId?: string, branchIds?: string[] | null) {
-  const items = db.inventory.filter((i) => (!branchId || i.branchId === branchId) && (!branchIds || branchIds.includes(i.branchId)));
-  const out = items.filter((i) => i.quantity === 0).length;
-  const low = items.filter((i) => i.quantity > 0 && i.quantity <= i.reorderLevel).length;
-  const healthy = items.length - out - low;
-  const pct = (n: number) => (items.length ? (n / items.length) * 100 : 0);
-  const healthPct = pct(healthy);
-  return { total: items.length, healthy, low, out, healthPct, lowPct: pct(low), outPct: pct(out), status: healthPct >= 80 ? "Healthy" : healthPct >= 60 ? "Watch" : "At risk" };
-}
+export { getBranchInventoryHealth } from "@/lib/inventory-calculations";
 /** Stock value of items with zero completed sales in the last 30 days. */
 export function getDeadStockValue(db: Db, branchIds: string[]) {
   const since = { from: addDays(db.tenant.referenceDate, -29), to: db.tenant.referenceDate };
-  return db.inventory.filter((i) => branchIds.includes(i.branchId) && i.quantity > 0 &&
+  return db.inventory.filter((i) => branchIds.includes(i.branchId) && i.quantityOnHand > 0 &&
     !db.sales.some((s) => s.status === "completed" && s.branchId === i.branchId && s.productId === i.productId && inRange(s.saleDate, since)))
-    .reduce((sum, i) => sum + i.quantity * (db.products.find((pr) => pr.id === i.productId)?.unitPrice ?? 0), 0);
+    .reduce((sum, i) => sum + i.quantityOnHand * (db.products.find((pr) => pr.id === i.productId)?.unitCost ?? 0), 0);
 }
 
 /** Weekly revenue buckets (oldest → newest) ending on the reference date. */
