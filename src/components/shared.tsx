@@ -1,0 +1,49 @@
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { PerformanceBand } from "@/lib/calculations";
+import { bandLabel } from "@/lib/calculations";
+
+export const ALL = "all";
+
+export function MetricCard({ icon: Icon, tone, label, value, detail, badge }: { icon: LucideIcon; tone: "success" | "brand" | "violet" | "warning"; label: string; value: string; detail?: string; badge?: string }) {
+  return (
+    <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
+      <div className="flex items-start justify-between"><span className={`metric-icon metric-icon-${tone}`}><Icon className="size-5" /></span>{badge && <span className={`status status-${tone}`}>{badge}</span>}</div>
+      <p className="mt-5 text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p>{detail && <p className="mt-2 text-[11px] text-muted-foreground">{detail}</p>}
+    </article>
+  );
+}
+
+export function FilterSelect({ value, onChange, options, label, className = "w-full sm:w-44" }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; label: string; className?: string }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} className={`h-9 bg-card text-xs ${className}`}><SelectValue /></SelectTrigger>
+      <SelectContent>{options.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}</SelectContent>
+    </Select>
+  );
+}
+
+export function BranchStatusBadge({ status }: { status: "active" | "inactive" }) {
+  return <span className={`status ${status === "active" ? "status-success" : "status-warning"}`}>{status === "active" ? "Active" : "Inactive"}</span>;
+}
+export function BandBadge({ band }: { band: PerformanceBand }) {
+  return <span className={`status ${band === "exceeding" ? "status-success" : band === "on_track" ? "status-brand" : "status-danger"}`}>{bandLabel[band]}</span>;
+}
+export function ProgressBar({ value, band }: { value: number; band: PerformanceBand }) {
+  return <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${band === "exceeding" ? "bg-success" : band === "on_track" ? "bg-warning" : "bg-destructive"}`} style={{ width: `${Math.min(value, 100)}%` }} /></div>;
+}
+export function Panel({ title, subtitle, action, children, className = "" }: { title: string; subtitle?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-lg border border-border bg-card shadow-panel ${className}`}>
+      <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="panel-title">{title}</h2>{subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}</div>{action}</div>
+      {children}
+    </section>
+  );
+}
+export function EmptyState({ title, detail }: { title: string; detail?: string }) {
+  return <div className="p-10 text-center"><p className="text-sm font-bold">{title}</p>{detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}</div>;
+}
+export function FieldError({ message }: { message?: string }) {
+  return message ? <p className="mt-1 text-[11px] font-medium text-destructive">{message}</p> : null;
+}
