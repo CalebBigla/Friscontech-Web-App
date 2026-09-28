@@ -8,7 +8,7 @@ import { bandLabel } from "@/lib/calculations";
 
 export const ALL = "all";
 
-export function MetricCard({ icon: Icon, tone, label, value, detail, badge }: { icon: LucideIcon; tone: "success" | "brand" | "violet" | "warning"; label: string; value: string; detail?: string; badge?: string }) {
+export function MetricCard({ icon: Icon, tone, label, value, detail, badge }: { icon: LucideIcon; tone: "success" | "brand" | "violet" | "warning"; label: string; value: string; detail?: string | undefined; badge?: string | undefined }) {
   return (
     <article className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-panel sm:p-5">
       <div className="flex items-start justify-between"><span className={`metric-icon metric-icon-${tone}`}><Icon className="size-5" /></span>{badge && <span className={`status status-${tone}`}>{badge}</span>}</div>
