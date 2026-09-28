@@ -79,7 +79,7 @@ export function SalesPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard icon={CircleDollarSign} tone="success" label="Total revenue" value={formatNaira(data.revenue)} detail="Completed sales in period" />
         <MetricCard icon={Receipt} tone="brand" label="Total sales" value={String(data.count)} detail={`${data.rows.length - data.count} pending or voided`} />
         <MetricCard icon={BarChart3} tone="violet" label="Average sale" value={formatNaira(Math.round(data.avg))} detail="Revenue ÷ completed sales" />

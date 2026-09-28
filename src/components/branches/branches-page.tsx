@@ -73,7 +73,7 @@ export function BranchesPage() {
       actions={scope.canManageBranches && <Button onClick={() => { setEditing(null); setFormOpen(true); }}><Plus className="size-4" /><span className="hidden sm:inline">New Branch</span></Button>}>
       <div className="mb-5"><h1 className="text-xl font-bold">Branches</h1><p className="mt-1 text-xs text-muted-foreground">Manage business locations, branch performance and operational status · Performance for {formatMonth(month)}</p></div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard icon={Building2} tone="brand" label="Total branches" value={String(summary.total)} detail="All registered locations" />
         <MetricCard icon={Store} tone="success" label="Active branches" value={String(summary.active)} detail="Currently operating" />
         <MetricCard icon={CircleOff} tone="warning" label="Inactive branches" value={String(summary.total - summary.active)} detail="History preserved" />

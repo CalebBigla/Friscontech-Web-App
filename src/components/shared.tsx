@@ -8,9 +8,9 @@ export const ALL = "all";
 
 export function MetricCard({ icon: Icon, tone, label, value, detail, badge }: { icon: LucideIcon; tone: "success" | "brand" | "violet" | "warning"; label: string; value: string; detail?: string; badge?: string }) {
   return (
-    <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
+    <article className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-panel sm:p-5">
       <div className="flex items-start justify-between"><span className={`metric-icon metric-icon-${tone}`}><Icon className="size-5" /></span>{badge && <span className={`status status-${tone}`}>{badge}</span>}</div>
-      <p className="mt-5 text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p>{detail && <p className="mt-2 text-[11px] text-muted-foreground">{detail}</p>}
+      <p className="mt-5 text-xs text-muted-foreground">{label}</p><p className="mt-1 truncate text-lg font-bold sm:text-2xl">{value}</p>{detail && <p className="mt-2 text-[11px] text-muted-foreground">{detail}</p>}
     </article>
   );
 }
