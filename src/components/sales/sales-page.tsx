@@ -88,7 +88,7 @@ export function SalesPage() {
 
       {repProgress && <div className="mt-4 rounded-lg border border-border bg-card p-5 text-xs shadow-panel"><div className="flex flex-wrap gap-6"><span className="panel-title">My target · {formatMonth(monthOf(today))}</span><span>Target <strong>{formatNaira(repProgress.target)}</strong></span><span>Sales <strong>{formatNaira(repProgress.revenue)}</strong></span><span>Remaining <strong>{formatNaira(repProgress.remaining)}</strong></span><span>Achievement <strong>{formatPercent(repProgress.achievement)}</strong></span></div></div>}
 
-      <Panel className="mt-4" title="Revenue over time" subtitle={data.series.length > 1 && data.series[0].to !== data.series[0].from ? "Weekly completed revenue" : "Daily completed revenue"}>
+      <Panel className="mt-4" title="Revenue over time" subtitle={data.series.length > 1 && data.series[0]?.to !== data.series[0]?.from ? "Weekly completed revenue" : "Daily completed revenue"}>
         <div className="p-5">
           <div className="flex h-40 items-end gap-1 border-b border-border sm:gap-2">{data.series.map((s) => <div key={s.from} className="group flex h-full flex-1 items-end" title={`${formatShortDate(s.from)}: ${formatNaira(s.revenue)}`}><div className="w-full rounded-t-sm bg-chart transition-colors group-hover:bg-primary" style={{ height: `${(s.revenue / maxBar) * 100}%` }} /></div>)}</div>
           <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>{formatShortDate(range.from)}</span><span>{formatShortDate(range.to)}</span></div>

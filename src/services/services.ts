@@ -5,7 +5,7 @@
 import type { Activity, Branch, BranchStatus, Db, Sale } from "@/data/mock-db";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };

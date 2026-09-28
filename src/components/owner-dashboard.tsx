@@ -54,7 +54,7 @@ export function OwnerDashboard() {
       { label: "Target attainment", value: formatPercent(attainment, 0), detail: `${formatCompactNaira(Math.max(target - revenue, 0))} remaining`, change: `${attainment - prevAttainment >= 0 ? "+" : ""}${(attainment - prevAttainment).toFixed(0)}%`, tone: "warning" },
     ];
     const weekly = getWeeklyRevenueSeries(db, 12);
-    const w1 = weekly[weekly.length - 1].revenue, w0 = weekly[weekly.length - 2].revenue;
+    const w1 = weekly[weekly.length - 1]?.revenue ?? 0, w0 = weekly[weekly.length - 2]?.revenue ?? 0;
     const inv = getBranchInventoryHealth(db, undefined, activeIds);
     const branchRows = active.map((b) => ({ branch: b, manager: getBranchManager(db, b), perf: getBranchPerformance(db, b.id, month) }))
       .sort((a, b) => b.perf.revenue - a.perf.revenue);
@@ -110,7 +110,7 @@ export function OwnerDashboard() {
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-start justify-between"><div><h2 className="panel-title">Revenue trend</h2><p className="mt-1 text-xs text-muted-foreground">Gross sales across all branches</p></div><span className={`status ${data.weeklyChange >= 0 ? "status-success" : "status-danger"}`}>{data.weeklyChange >= 0 ? "+" : ""}{data.weeklyChange.toFixed(1)}%</span></div>
           <div className="mt-6 flex h-44 items-end gap-2 border-b border-border pt-4 sm:gap-3">{data.weekly.map((w) => <div key={w.to} className="group relative flex h-full flex-1 items-end" title={`${w.label}: ${formatCompactNaira(w.revenue)}`}><div className="w-full rounded-t-sm bg-chart transition-colors group-hover:bg-primary" style={{ height: `${(w.revenue / maxWeek) * 100}%` }}><span className="sr-only">{w.label}: {formatCompactNaira(w.revenue)}</span></div></div>)}</div>
-          <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">{[0, 3, 6, 9, 11].map((i) => <span key={i}>{data.weekly[i].label}</span>)}</div>
+          <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">{[0, 3, 6, 9, 11].map((i) => <span key={i}>{data.weekly[i]?.label}</span>)}</div>
         </article>
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-center justify-between"><h2 className="panel-title">Inventory health</h2><span className={`status ${data.inv.status === "Healthy" ? "status-success" : "status-warning"}`}>{data.inv.status}</span></div>

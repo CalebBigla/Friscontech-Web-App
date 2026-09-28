@@ -90,7 +90,7 @@ export function BranchesPage() {
             <FilterSelect label="Performance filter" className="w-full sm:w-40" value={band} onChange={setBand} options={[{ value: ALL, label: "All performance" }, { value: "exceeding", label: "Exceeding target" }, { value: "on_track", label: "On track" }, { value: "behind", label: "Behind target" }]} />
           </div>
           <div className="md:hidden"><FilterSelect label="Sort by" className="w-full" value={`${sort.key}:${sort.dir}`} onChange={(v) => { const [key, dir] = v.split(":"); setSort({ key: key as SortKey, dir: Number(dir) as 1 | -1 }); }}
-            options={[["name:1", "Name A–Z"], ["revenue:-1", "Highest revenue"], ["target:-1", "Highest target"], ["achievement:-1", "Best performance"], ["staff:-1", "Most staff"], ["status:1", "Status"]].map(([value, label]) => ({ value, label }))} /></div>
+            options={[["name:1", "Name A–Z"], ["revenue:-1", "Highest revenue"], ["target:-1", "Highest target"], ["achievement:-1", "Best performance"], ["staff:-1", "Most staff"], ["status:1", "Status"]].map(([value = "", label = ""]) => ({ value, label }))} /></div>
         </div>}>
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[980px] text-left">
