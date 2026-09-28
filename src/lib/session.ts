@@ -28,17 +28,23 @@ export type AccessScope = {
   canFulfillRequests: boolean;
   /** submit new stock requests (sales reps) */
   canCreateRequests: boolean;
+  /** branch module (owner + manager only) */
+  canViewBranches: boolean;
+  /** add products to the shared catalogue (storekeeper) */
+  canManageProducts: boolean;
+  /** full inventory interface: value, movements, thresholds (not sales reps) */
+  canViewInventoryAdmin: boolean;
 };
 
-const none = { canManageStock: false, canReviewRequests: false, canFulfillRequests: false, canCreateRequests: false };
+const none = { canManageStock: false, canReviewRequests: false, canFulfillRequests: false, canCreateRequests: false, canViewBranches: false, canManageProducts: false, canViewInventoryAdmin: true };
 export function getAccessScope(db: Db, userId: string): AccessScope {
   const user = (db.users.find((x) => x.id === userId) ?? db.users[0])!;
   const own = user.branchId ? [user.branchId] : [];
   switch (user.role) {
-    case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true, ...none };
-    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canReviewRequests: true };
-    case "storekeeper": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: false, canManageStock: true, canReviewRequests: true, canFulfillRequests: true, canCreateRequests: false };
-    case "sales_rep": return { user, branchIds: own, repId: user.id, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canCreateRequests: true };
+    case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true, ...none, canViewBranches: true };
+    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canReviewRequests: true, canViewBranches: true };
+    case "storekeeper": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: false, canManageStock: true, canReviewRequests: true, canFulfillRequests: true, canCreateRequests: false, canViewBranches: false, canManageProducts: true, canViewInventoryAdmin: true };
+    case "sales_rep": return { user, branchIds: own, repId: user.id, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canCreateRequests: true, canViewInventoryAdmin: false };
   }
 }
 export const canSeeBranch = (scope: AccessScope, branchId: string) => !scope.branchIds || scope.branchIds.includes(branchId);
