@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
-import { Route as ProductsRouteImport } from './routes/products'
 import { Route as SalesRouteImport } from './routes/sales'
 import { Route as StockMovementsRouteImport } from './routes/stock-movements'
 import { Route as BranchesIndexRouteImport } from './routes/branches.index'
@@ -29,11 +28,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuditLogRoute = AuditLogRouteImport.update({
   id: '/audit-log',
   path: '/audit-log',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProductsRoute = ProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalesRoute = SalesRouteImport.update({
@@ -80,7 +74,6 @@ const StockRequestsRequestIdRoute = StockRequestsRequestIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
-  '/products': typeof ProductsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -93,7 +86,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
-  '/products': typeof ProductsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -107,7 +99,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
-  '/products': typeof ProductsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -122,7 +113,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/audit-log'
-    | '/products'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -135,7 +125,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/audit-log'
-    | '/products'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -148,7 +137,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/audit-log'
-    | '/products'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -162,7 +150,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditLogRoute: typeof AuditLogRoute
-  ProductsRoute: typeof ProductsRoute
   SalesRoute: typeof SalesRoute
   StockMovementsRoute: typeof StockMovementsRoute
   BranchesBranchIdRoute: typeof BranchesBranchIdRoute
@@ -187,13 +174,6 @@ declare module '@tanstack/react-router' {
       path: '/audit-log'
       fullPath: '/audit-log'
       preLoaderRoute: typeof AuditLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/products': {
-      id: '/products'
-      path: '/products'
-      fullPath: '/products'
-      preLoaderRoute: typeof ProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sales': {
@@ -258,7 +238,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditLogRoute: AuditLogRoute,
-  ProductsRoute: ProductsRoute,
   SalesRoute: SalesRoute,
   StockMovementsRoute: StockMovementsRoute,
   BranchesBranchIdRoute: BranchesBranchIdRoute,
