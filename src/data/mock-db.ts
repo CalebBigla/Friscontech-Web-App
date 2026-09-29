@@ -290,7 +290,7 @@ export function createSeedDb(): Db {
     inventoryMovements: movements,
     targets,
     stockRequests: stockRequests.map((x) => ({ ...x })),
-    activities: seedAuditLogs({ tenantId: T, branches, users, products, sales, stockRequests, inventoryMovements: movements, targets }),
+    activities: seedAuditLogs({ tenantId: T, branches, users, products, sales, stockRequests, inventoryMovements: movements, targets }, REF),
     preferences: [],
     escalations: [
       { id: "esc-001", tenantId: T, branchId: "branch-004", type: "Target dispute", detail: "Q4 target review requested by manager", createdAt: "2026-09-28T07:14:00", tone: "danger", status: "open" },

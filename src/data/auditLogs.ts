@@ -49,7 +49,7 @@ export function verbFromAction(action: string): AuditVerb {
 type SeedSource = { tenantId: string; branches: Branch[]; users: User[]; products: Product[]; sales: Sale[]; stockRequests: StockRequest[]; inventoryMovements: InventoryMovement[]; targets: Target[] };
 
 /** Historical entries for the seeded records so the log starts populated and consistent with the data. */
-export function seedAuditLogs(src: SeedSource): Activity[] {
+export function seedAuditLogs(src: SeedSource, referenceDate: string): Activity[] {
   const product = (id: string) => src.products.find((p) => p.id === id)?.name ?? "Product";
   const user = (id: string | null) => src.users.find((u) => u.id === id);
   const out: Omit<Activity, "id">[] = [];
@@ -68,5 +68,6 @@ export function seedAuditLogs(src: SeedSource): Activity[] {
   for (const m of src.inventoryMovements) if (m.type === "stock_added" || m.type === "adjustment")
     push({ actorId: m.performedBy, action: m.type === "stock_added" ? "Stock added" : "Stock adjusted", subject: `${product(m.productId)} · ${m.quantity > 0 ? "+" : ""}${m.quantity} units${m.note ? ` · ${m.note}` : ""}`, entity: "inventory", entityId: m.id, createdAt: m.createdAt, metadata: { branchId: m.branchId, productId: m.productId } });
   for (const t of src.targets) if (t.scope === "rep") push({ actorId: src.branches.find((b) => b.id === t.branchId)?.managerId ?? "user-001", action: "Target created", subject: `${user(t.userId)?.name ?? "Rep"} · ${t.month} · ₦${t.amount.toLocaleString("en-NG")}`, entity: "target", entityId: t.id, createdAt: t.createdAt.length > 10 ? t.createdAt : `${t.createdAt}T08:30:00`, metadata: { branchId: t.branchId, targetId: t.id } });
-  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((e, n) => ({ ...e, id: `aud-${String(out.length - n).padStart(5, "0")}` }));
+  const past = out.filter((e) => e.createdAt.slice(0, 10) <= referenceDate);
+  return past.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((e, n) => ({ ...e, id: `aud-${String(past.length - n).padStart(5, "0")}` }));
 }
