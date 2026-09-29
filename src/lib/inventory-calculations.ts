@@ -123,7 +123,50 @@ export function getRequestTimeline(db: Db, r: StockRequest): TimelineStep[] {
   const total = r.quantityApproved ?? r.quantityRequested;
   if (r.status === "partially_fulfilled") steps.push({ key: "fulfilled", label: "Partially fulfilled", detail: `${r.quantityFulfilled ?? 0} / ${total} fulfilled · ${getRequestOutstanding(r)} remaining`, at: r.fulfilledAt, state: "current" });
   else steps.push({ key: "fulfilled", label: "Fulfilled", detail: r.status === "fulfilled" ? `${r.quantityFulfilled} / ${total} units issued` : undefined, at: r.status === "fulfilled" ? r.fulfilledAt : undefined, state: r.status === "fulfilled" ? "done" : "upcoming" });
+  steps.push(r.acknowledgedAt
+    ? { key: "acknowledged", label: "Receipt acknowledged", detail: `Confirmed by ${name(r.acknowledgedBy) ?? rep}`, at: r.acknowledgedAt, state: "done" }
+    : { key: "acknowledged", label: "Receipt acknowledged", detail: r.status === "fulfilled" ? `Awaiting ${rep ?? "sales rep"}'s confirmation` : undefined, state: r.status === "fulfilled" ? "current" : "upcoming" });
   return steps;
 }
 
 export const withinDays = (iso: string, today: string, days: number) => iso.slice(0, 10) >= addDays(today, -(days - 1)) && iso.slice(0, 10) <= today;
+
+/** Display state layered on the stored status: fulfilled requests await the rep's acknowledgement. */
+export type RequestDisplayStatus = StockRequestStatus | "awaiting_ack" | "acknowledged";
+export const requestDisplayLabel: Record<RequestDisplayStatus, string> = { ...requestStatusLabel, awaiting_ack: "Fulfilled — Awaiting Acknowledgement", acknowledged: "Acknowledged" };
+export const getRequestDisplayStatus = (r: StockRequest): RequestDisplayStatus => r.status !== "fulfilled" ? r.status : r.acknowledgedAt ? "acknowledged" : "awaiting_ack";
+export const needsAcknowledgement = (r: StockRequest) => r.status === "fulfilled" && !r.acknowledgedAt;
+
+/** Other requests submitted together with this one (multi-product submission). */
+export const getRequestBatch = (db: Db, r: StockRequest) => r.batchId ? db.stockRequests.filter((x) => x.batchId === r.batchId) : [r];
+
+export type RepHolding = { productId: string; issued: number; sold: number; held: number; lastIssuedAt: string };
+/**
+ * Stock currently with each rep: units issued to them through fulfilled requests
+ * minus units they have sold of that product since the first issue.
+ */
+export function getRepStockHoldings(db: Db, branchIds: string[] | null) {
+  const reps = db.users.filter((u) => u.role === "sales_rep" && u.branchId && (!branchIds || branchIds.includes(u.branchId)));
+  return reps.map((rep) => {
+    const reqIds = new Map(db.stockRequests.filter((r) => r.repId === rep.id).map((r) => [r.id, r]));
+    const byProduct = new Map<string, RepHolding>();
+    for (const m of db.inventoryMovements) {
+      if (m.type !== "stock_issued" || !m.referenceId || !reqIds.has(m.referenceId)) continue;
+      const h = byProduct.get(m.productId) ?? { productId: m.productId, issued: 0, sold: 0, held: 0, lastIssuedAt: m.createdAt };
+      h.issued += -m.quantity;
+      if (m.createdAt > h.lastIssuedAt) h.lastIssuedAt = m.createdAt;
+      byProduct.set(m.productId, h);
+    }
+    const holdings = [...byProduct.values()].map((h) => {
+      const first = db.inventoryMovements.filter((m) => m.type === "stock_issued" && m.productId === h.productId && m.referenceId && reqIds.has(m.referenceId)).reduce((a, m) => (m.createdAt < a ? m.createdAt : a), h.lastIssuedAt);
+      const sold = db.sales.filter((s) => s.salesRepId === rep.id && s.productId === h.productId && s.status === "completed" && s.createdAt >= first).reduce((a, s) => a + s.quantity, 0);
+      return { ...h, sold, held: Math.max(h.issued - sold, 0) };
+    }).sort((a, b) => b.lastIssuedAt.localeCompare(a.lastIssuedAt));
+    const requests = [...reqIds.values()];
+    return {
+      rep, holdings, heldUnits: holdings.reduce((a, h) => a + h.held, 0), issuedUnits: holdings.reduce((a, h) => a + h.issued, 0),
+      openRequests: requests.filter(isRequestOpen).length, awaitingAck: requests.filter(needsAcknowledgement).length,
+      lastIssuedAt: holdings[0]?.lastIssuedAt,
+    };
+  }).sort((a, b) => b.heldUnits - a.heldUnits);
+}
