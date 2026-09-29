@@ -1,3 +1,4 @@
+import { seedAuditLogs } from "./auditLogs";
 /**
  * Centralized, relational mock datasets for SalesFlow Pro.
  * Records mirror future PostgreSQL tables: every relationship is expressed through IDs.
@@ -9,7 +10,15 @@ export type Role = "owner" | "manager" | "storekeeper" | "sales_rep";
 export type BranchStatus = "active" | "inactive";
 export type SaleStatus = "completed" | "pending" | "voided";
 
-export type Tenant = { id: string; name: string; currency: "NGN"; referenceDate: string; lastSyncTime: string };
+/** Tenant doubles as the organization settings record (PRD tenant + editable business profile). */
+export type Tenant = {
+  id: string; name: string; currency: "NGN"; referenceDate: string; lastSyncTime: string;
+  legalName: string; businessEmail: string; phone: string; timezone: string; plan: string; createdAt: string; updatedAt: string;
+};
+export type DateFormatPref = "MMM D, YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
+export type ReportPeriodPref = "today" | "week" | "month" | "quarter";
+/** Per-user display preferences (no secrets). */
+export type UserPreference = { userId: string; dateFormat: DateFormatPref; defaultReportPeriod: ReportPeriodPref; updatedAt: string };
 export type Branch = {
   id: string; tenantId: string; name: string; code: string; location: string; address: string;
   phone: string; email: string; managerId: string | null; status: BranchStatus; createdAt: string;
@@ -50,19 +59,24 @@ export type StockRequest = {
   approvedBy?: string; fulfilledBy?: string; processedBy?: string;
   note?: string; rejectionReason?: string;
 };
-export type Activity = { id: string; tenantId: string; action: string; subject: string; actorId: string; createdAt: string };
+export type AuditEntity = "product" | "sale" | "stock_request" | "target" | "team_member" | "branch" | "inventory" | "settings" | "session";
+/** Audit log entry (see src/data/auditLogs.ts): actorId = user_id, createdAt = timestamp, subject = description. */
+export type Activity = {
+  id: string; tenantId: string; action: string; subject: string; actorId: string; createdAt: string;
+  entity: AuditEntity; entityId?: string; metadata?: { branchId?: string; productId?: string; targetId?: string; requestId?: string };
+};
 export type Escalation = { id: string; tenantId: string; branchId: string; type: string; detail: string; createdAt: string; tone: "danger" | "warning" | "neutral"; status: "open" | "resolved" };
 
 export type Db = {
   tenant: Tenant; branches: Branch[]; users: User[]; products: Product[]; sales: Sale[];
   inventory: InventoryRecord[]; inventoryMovements: InventoryMovement[]; targets: Target[]; stockRequests: StockRequest[];
-  activities: Activity[]; escalations: Escalation[];
+  activities: Activity[]; escalations: Escalation[]; preferences: UserPreference[];
 };
 
 const T = "tenant-001";
 const REF = "2026-09-28";
 
-const tenant: Tenant = { id: T, name: "Westfield Retail", currency: "NGN", referenceDate: REF, lastSyncTime: "09:14" };
+const tenant: Tenant = { id: T, name: "Westfield Retail", currency: "NGN", referenceDate: REF, lastSyncTime: "09:14", legalName: "Westfield Retail Limited", businessEmail: "admin@westfieldretail.ng", phone: "+234 802 555 0100", timezone: "Africa/Lagos", plan: "Growth", createdAt: "2025-01-15", updatedAt: "2026-08-02T10:00:00" };
 
 const b = (id: string, name: string, code: string, location: string, address: string, managerId: string | null, status: BranchStatus = "active"): Branch => ({
   id, tenantId: T, name, code, location, address, managerId, status, createdAt: "2025-01-10",
@@ -264,6 +278,8 @@ function seedMovements(sales: Sale[], inventory: InventoryRecord[]): InventoryMo
 export function createSeedDb(): Db {
   const sales = seedSales();
   const inventory = seedInventory();
+  const movements = seedMovements(sales, inventory);
+  const targets = seedTargets();
   return {
     tenant,
     branches: branches.map((x) => ({ ...x })),
@@ -271,14 +287,11 @@ export function createSeedDb(): Db {
     products,
     sales,
     inventory,
-    inventoryMovements: seedMovements(sales, inventory),
-    targets: seedTargets(),
+    inventoryMovements: movements,
+    targets,
     stockRequests: stockRequests.map((x) => ({ ...x })),
-    activities: [
-      { id: "act-003", tenantId: T, action: "Stock request approved", subject: "Ikeja Branch · AirPods Pro", actorId: "user-022", createdAt: "2026-09-28T09:09:00" },
-      { id: "act-002", tenantId: T, action: "New sales rep added", subject: "Lekki Branch · Chidi Eze", actorId: "user-004", createdAt: "2026-09-28T08:14:00" },
-      { id: "act-001", tenantId: T, action: "Monthly target updated", subject: "Ajah Branch · ₦32m", actorId: "user-001", createdAt: "2026-09-28T07:14:00" },
-    ],
+    activities: seedAuditLogs({ tenantId: T, branches, users, products, sales, stockRequests, inventoryMovements: movements, targets }),
+    preferences: [],
     escalations: [
       { id: "esc-001", tenantId: T, branchId: "branch-004", type: "Target dispute", detail: "Q4 target review requested by manager", createdAt: "2026-09-28T07:14:00", tone: "danger", status: "open" },
       { id: "esc-002", tenantId: T, branchId: "branch-006", type: "Stock delay", detail: "Delivery #882 is four hours overdue", createdAt: "2026-09-28T04:14:00", tone: "warning", status: "open" },
