@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, Circle, PackageCheck, X, XCircle } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Circle, PackageCheck, X, XCircle } from "lucide-react";
+import { AcknowledgeDialog } from "@/components/stock-requests/acknowledge-dialog";
 
 import { AppShell, RestrictedNotice } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { DetailItem, Panel, RequestStatusBadge, StockStatusBadge } from "@/compo
 import { RequestActionDialog, ShortageNotice, type RequestAction } from "@/components/stock-requests/request-action-dialogs";
 import { useDb } from "@/services/mock-store";
 import { canSeeBranch, getAccessScope, useCurrentUserId } from "@/lib/session";
-import { getRequestOutstanding, getRequestTimeline, getStockRequestAvailability, isRequestOpen } from "@/lib/inventory-calculations";
+import { getRequestBatch, getRequestOutstanding, getRequestTimeline, getStockRequestAvailability, isRequestOpen, needsAcknowledgement } from "@/lib/inventory-calculations";
 import { formatDate, formatDayTime, formatUnits } from "@/lib/format";
 
 export function RequestDetailPage({ requestId }: { requestId: string }) {
@@ -16,6 +17,7 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
   const userId = useCurrentUserId();
   const scope = getAccessScope(db, userId);
   const [action, setAction] = useState<RequestAction>(null);
+  const [acking, setAcking] = useState(false);
   const req = db.stockRequests.find((r) => r.id === requestId);
   const allowed = req && canSeeBranch(scope, req.branchId) && (!scope.repId || req.repId === scope.repId);
 
@@ -31,12 +33,15 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
   const fulfilled = req.quantityFulfilled ?? 0;
   const canReview = req.status === "pending" && scope.canReviewRequests;
   const canFulfill = (req.status === "approved" || req.status === "partially_fulfilled") && scope.canFulfillRequests;
+  const canAck = scope.canAcknowledgeStock && req.repId === userId && needsAcknowledgement(req);
+  const batch = getRequestBatch(db, req);
 
   return (
     <AppShell title={`Request ${req.id}`} subtitle={`${product.name} · ${branch.name}`}
       actions={<div className="flex gap-2">
         {canReview && <><Button variant="outline" onClick={() => setAction({ kind: "reject", request: req })}><X className="size-4" /><span className="hidden sm:inline">Reject</span></Button><Button onClick={() => setAction({ kind: "approve", request: req })}><Check className="size-4" />Approve</Button></>}
         {canFulfill && <Button onClick={() => setAction({ kind: "fulfill", request: req })}><PackageCheck className="size-4" />Fulfill</Button>}
+        {canAck && <Button onClick={() => setAcking(true)}><CheckCheck className="size-4" />Acknowledge Receipt</Button>}
       </div>}>
       <Link to="/stock-requests" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Stock requests</Link>
       <div className="mb-5 mt-2 flex flex-wrap items-center gap-3"><h1 className="text-xl font-bold">Request {req.id}</h1><RequestStatusBadge request={req} />{req.priority === "High" && <span className="status status-danger">High priority</span>}</div>
@@ -55,9 +60,21 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
               <DetailItem label="Current available stock"><span className="flex items-center gap-2">{formatUnits(avail.available)}<StockStatusBadge status={avail.status} /></span></DetailItem>
               <DetailItem label="Status"><RequestStatusBadge request={req} /></DetailItem>
             </div>
+            {req.acknowledgedAt && <p className="border-t border-border px-5 py-3 text-xs"><span className="text-muted-foreground">Acknowledged: </span><strong>{db.users.find((u) => u.id === req.acknowledgedBy)?.name}</strong> · {formatDate(req.acknowledgedAt)}, {req.acknowledgedAt.slice(11, 16)} · {branch.name}</p>}
+            {canAck && <div className="border-t border-border p-5"><div className="alert alert-warning flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-foreground">Fulfilled — Awaiting Acknowledgement</p><p className="mt-0.5 text-[11px] text-muted-foreground">Confirm once you've received {formatUnits(fulfilled)}.</p></div><Button size="sm" onClick={() => setAcking(true)}>Acknowledge Receipt</Button></div></div>}
             {req.note && <p className="border-t border-border px-5 py-3 text-xs"><span className="text-muted-foreground">Note: </span>{req.note}</p>}
             {req.status === "rejected" && <div className="border-t border-border p-5"><div className="alert alert-danger"><p className="text-[10px] font-bold uppercase">Rejection reason</p><p className="mt-1 text-xs font-semibold text-foreground">{req.rejectionReason}</p></div></div>}
           </Panel>
+
+          {batch.length > 1 && (
+            <Panel title="Submitted together" subtitle={`${batch.length} products in ${req.batchId}`}>
+              <div className="divide-y divide-border">{batch.map((b) => (
+                <Link key={b.id} to="/stock-requests/$requestId" params={{ requestId: b.id }} className={`flex items-center justify-between gap-3 px-5 py-3 text-xs hover:bg-muted/60 ${b.id === req.id ? "bg-muted/60" : ""}`}>
+                  <span className="min-w-0"><span className="font-semibold">{db.products.find((p) => p.id === b.productId)?.name}</span><span className="ml-2 font-mono text-[10px] text-muted-foreground">{b.id}</span></span>
+                  <span className="flex items-center gap-3"><strong>{b.quantityRequested}</strong><RequestStatusBadge request={b} /></span>
+                </Link>))}</div>
+            </Panel>
+          )}
 
           {req.status !== "rejected" && req.status !== "pending" && (
             <Panel title="Fulfillment" subtitle={`${fulfilled} / ${total} fulfilled`}>
@@ -97,6 +114,7 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
       </section>
 
       <RequestActionDialog action={action} onClose={() => setAction(null)} actorId={userId} />
+      <AcknowledgeDialog request={acking ? req : null} onClose={() => setAcking(false)} actorId={userId} />
     </AppShell>
   );
 }
