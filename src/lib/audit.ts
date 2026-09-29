@@ -29,7 +29,7 @@ export function getAuditLog(db: Db, scope: AccessScope): AuditEntry[] {
       if (r.approvedBy === me && r.approvedAt) out.push({ id: `ap-${r.id}`, at: r.approvedAt, kind: "review", action: "Approved stock request", subject: `${r.id} · ${r.quantityApproved ?? r.quantityRequested} × ${product(r.productId)}`, link: { requestId: r.id } });
       if (r.status === "rejected" && r.processedBy === me && r.rejectedAt) out.push({ id: `rj-${r.id}`, at: r.rejectedAt, kind: "review", action: "Rejected stock request", subject: `${r.id} · ${r.rejectionReason ?? ""}`, link: { requestId: r.id } });
     }
-    for (const a of db.activities) if (a.actorId === me && a.action === "Product added")
+    for (const a of db.activities) if (a.actorId === me && a.action.startsWith("Product "))
       out.push({ id: a.id, at: a.createdAt, kind: "product", action: a.action, subject: a.subject });
   } else {
     const users = new Set(db.users.filter((u) => !scope.branchIds || (u.branchId && scope.branchIds.includes(u.branchId))).map((u) => u.id));

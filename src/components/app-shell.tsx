@@ -12,7 +12,7 @@ import { useDb } from "@/services/mock-store";
 import { getAccessScope, setCurrentUserId, useCurrentUserId, type AccessScope } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/stock-movements" | "/audit-log";
+type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log";
 type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 const managementSections: NavSection[] = [
@@ -22,15 +22,15 @@ const managementSections: NavSection[] = [
     { label: "Sales", icon: ShoppingCart, to: "/sales", needsSales: true },
     { label: "Inventory", icon: Boxes, to: "/inventory" },
     { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
-    { label: "Targets", icon: Target },
+    { label: "Targets", icon: Target, to: "/targets" },
   ] },
-  { title: "Management", items: [{ label: "Products", icon: Package }, { label: "Users", icon: Users }, { label: "Reports", icon: BarChart3 }] },
+  { title: "Management", items: [{ label: "Products", icon: Package, to: "/products" }, { label: "Users", icon: Users }, { label: "Reports", icon: BarChart3 }] },
   { title: "System", items: [{ label: "Audit Log", icon: ClipboardCheck }, { label: "Settings", icon: Settings }] },
 ];
 const repSections: NavSection[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
   { title: "Sales", items: [{ label: "My Sales", icon: ShoppingCart, to: "/sales" }, { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
-  { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }] },
+  { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }, { label: "Products", icon: Package, to: "/products" }] },
   { title: "Accountability", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }] },
 ];
 const storekeeperSections: NavSection[] = [

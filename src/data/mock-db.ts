@@ -15,7 +15,12 @@ export type Branch = {
   phone: string; email: string; managerId: string | null; status: BranchStatus; createdAt: string;
 };
 export type User = { id: string; tenantId: string; name: string; email: string; role: Role; branchId: string | null; status: "active" | "inactive" };
-export type Product = { id: string; tenantId: string; name: string; sku: string; category: string; unit: string; unitPrice: number; unitCost: number };
+export type ProductStatus = "active" | "inactive";
+/** unitPrice is the selling price (PRD: selling_price). Branch stock lives in InventoryRecord, never here. */
+export type Product = {
+  id: string; tenantId: string; name: string; sku: string; category: string; unit: string; unitPrice: number; unitCost: number;
+  lowStockThreshold: number; description?: string; status: ProductStatus; createdAt: string; updatedAt: string;
+};
 export type Sale = {
   id: string; tenantId: string; code: string; branchId: string; salesRepId: string; productId: string;
   quantity: number; unitPrice: number; saleDate: string; createdAt: string; status: SaleStatus;
@@ -31,7 +36,8 @@ export type InventoryMovement = {
   id: string; tenantId: string; branchId: string; productId: string; type: MovementType; quantity: number;
   referenceType?: "stock_request" | "sale" | "manual"; referenceId?: string; performedBy: string; createdAt: string; note?: string;
 };
-export type Target = { id: string; tenantId: string; scope: "branch" | "rep"; branchId: string; userId: string | null; month: string; amount: number };
+/** month is "YYYY-MM" (PRD month + year). Achievement is never stored — it is computed from sales. */
+export type Target = { id: string; tenantId: string; scope: "branch" | "rep"; branchId: string; userId: string | null; month: string; amount: number; createdAt: string; updatedAt: string };
 export type StockRequestStatus = "pending" | "approved" | "partially_fulfilled" | "fulfilled" | "rejected";
 /** PRD core: id, tenant_id, rep_id, product_id, qty, status, fulfilled_by — extended for the branch-aware workflow. */
 export type StockRequest = {
@@ -103,7 +109,10 @@ const users: User[] = [
   u("user-025", "Joy Uzor", "storekeeper", "branch-005"),
 ];
 
-const p = (id: string, name: string, sku: string, category: string, unitPrice: number, unitCost: number): Product => ({ id, tenantId: T, name, sku, category, unit: "pcs", unitPrice, unitCost });
+const p = (id: string, name: string, sku: string, category: string, unitPrice: number, unitCost: number, unit = "Piece"): Product => ({
+  id, tenantId: T, name, sku, category, unit, unitPrice, unitCost, lowStockThreshold: unitPrice > 800_000 ? 5 : 15, status: "active",
+  createdAt: `2025-0${1 + (Number(id.slice(-3)) % 9)}-1${Number(id.slice(-1)) % 9}`, updatedAt: "2026-08-02",
+});
 const products: Product[] = [
   p("product-001", "iPhone 15 Pro", "APL-IP15P", "Phones", 1_250_000, 1_040_000),
   p("product-002", "Galaxy S24", "SMS-S24", "Phones", 980_000, 812_000),
@@ -117,6 +126,8 @@ const products: Product[] = [
   p("product-010", "Tecno Spark 30", "TCN-SP30", "Phones", 165_000, 129_000),
   p("product-011", "Oraimo Power Bank 20,000mAh", "ORM-PB20", "Accessories", 28_000, 19_500),
   p("product-012", "HP EliteBook 840 G8", "HP-EB840", "Computers", 890_000, 724_000),
+  { ...p("product-013", "Dell Latitude 5420", "DEL-LT5420", "Computers", 760_000, 615_000), status: "inactive", description: "Discontinued by supplier — kept for sales history.", updatedAt: "2026-09-04" },
+  { ...p("product-014", "Oraimo FreePods 4 (5-pack)", "ORM-FP4-5", "Audio", 140_000, 102_000, "Pack"), description: "Retail pack of five wireless earbuds." },
 ];
 
 // ---------- deterministic seed helpers (pure arithmetic, safe at module scope) ----------
@@ -176,10 +187,10 @@ function seedTargets(): Target[] {
   for (const month of months) {
     for (const branch of branches) {
       const amount = branchTargetBase[branch.id] ?? 0;
-      out.push({ id: `target-${branch.id}-${month}`, tenantId: T, scope: "branch", branchId: branch.id, userId: null, month, amount });
+      out.push({ id: `target-${branch.id}-${month}`, tenantId: T, scope: "branch", branchId: branch.id, userId: null, month, amount, createdAt: `${month}-01T08:00:00`, updatedAt: `${month}-01T08:00:00` });
       const reps = users.filter((x) => x.role === "sales_rep" && x.branchId === branch.id);
       for (const rep of reps) {
-        out.push({ id: `target-${rep.id}-${month}`, tenantId: T, scope: "rep", branchId: branch.id, userId: rep.id, month, amount: Math.round(amount / reps.length / 100_000) * 100_000 });
+        out.push({ id: `target-${rep.id}-${month}`, tenantId: T, scope: "rep", branchId: branch.id, userId: rep.id, month, amount: Math.round(amount / reps.length / 100_000) * 100_000, createdAt: `${month}-01T08:00:00`, updatedAt: `${month}-01T08:00:00` });
       }
     }
   }
@@ -192,7 +203,7 @@ function seedInventory(): InventoryRecord[] {
   for (const branch of branches) {
     for (const product of products) {
       const roll = rand();
-      const threshold = product.unitPrice > 800_000 ? 5 : 15;
+      const threshold = product.lowStockThreshold;
       const onHand = roll < 0.08 ? 0 : roll < 0.2 ? Math.floor(threshold * rand()) : threshold + 4 + Math.floor(rand() * 80);
       const reserved = onHand > threshold && rand() < 0.3 ? 1 + Math.floor(rand() * 3) : 0;
       const hour = 8 + Math.floor(rand() * 10), minute = Math.floor(rand() * 60);

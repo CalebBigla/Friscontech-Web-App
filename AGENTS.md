@@ -20,3 +20,5 @@
 - `applyInventoryChange` in `src/services/services.ts` is the only writer of `quantityOnHand` and always appends an `inventoryMovements` row, refusing negatives; so every stock change is traceable (sales, stock issues, additions, adjustments).
 - Stock requests: approval never touches stock; only fulfillment deducts, with `partially_fulfilled` when issued < approved; so the workflow stays auditable.
 - Role-specific navigation lives in `app-shell.tsx` (`sectionsFor`), pages are gated with `RoleGate` and data comes from role-scoped selectors (`getAccessScope`, `lib/audit.ts`); so hidden modules are also unreachable by URL.
+- Product and rep-target selectors live in `src/lib/catalog-calculations.ts` (target achievement = rep's completed sales in the month, status from pace); so targets never store achieved values.
+- Products are soft-deactivated (`status`), never deleted; services refuse inactive products for new sales, stock requests and stock additions so history stays intact.
