@@ -22,7 +22,7 @@ function nowOnReferenceDay(db: Db) {
 /** The single audit writer: every module appends to db.activities through here. Never pass secrets. */
 export function createAuditLog(db: Db, actorId: string, action: string, subject: string, ref: { entityId?: string; branchId?: string | null; productId?: string } = {}): Activity {
   const branchId = ref.branchId === undefined ? db.users.find((u) => u.id === actorId)?.branchId ?? undefined : ref.branchId ?? undefined;
-  const entityId = ref.entityId ?? subject.match(/\b(SR-\d+|SL-[\w-]+|REQ-\d+)\b/)?.[1];
+  const entityId = ref.entityId ?? subject.match(/\b(SR-\d+|SAL-\d+)\b/)?.[1];
   const metadata = { ...(branchId ? { branchId } : {}), ...(ref.productId ? { productId: ref.productId } : {}) };
   return {
     id: `act-${db.activities.length + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, tenantId: db.tenant.id, action, subject, actorId, createdAt: nowOnReferenceDay(db),
