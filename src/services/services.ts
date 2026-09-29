@@ -2,12 +2,12 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, Sale, StockRequest } from "@/data/mock-db";
+import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
 import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
 import { getAccessScope } from "@/lib/session";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
@@ -86,7 +86,9 @@ export function validateSale(db: Db, input: SaleInput) {
   const rep = db.users.find((x) => x.id === input.salesRepId);
   if (!rep) errors.salesRepId = "Sales representative is required";
   else if (rep.role !== "sales_rep" || rep.branchId !== input.branchId) errors.salesRepId = "Rep must belong to the selected branch";
-  if (!db.products.some((pr) => pr.id === input.productId)) errors.productId = "Product is required";
+  const saleProduct = db.products.find((pr) => pr.id === input.productId);
+  if (!saleProduct) errors.productId = "Product is required";
+  else if (saleProduct.status !== "active") errors.productId = "This product is inactive and cannot be sold";
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Quantity must be greater than zero";
   else if (branch && !errors.productId) {
     const inv = findInventory(db, input.branchId, input.productId);
@@ -164,7 +166,9 @@ export const mockInventoryService = {
     if (!branch) errors.branchId = "Select a branch";
     else if (branch.status !== "active") errors.branchId = "Stock can only be added to active branches";
     else if (scope.branchIds && !scope.branchIds.includes(branch.id)) errors.branchId = "You can only add stock to your branch";
-    if (!current.products.some((p) => p.id === input.productId)) errors.productId = "Select a product";
+    const product = current.products.find((p) => p.id === input.productId);
+    if (!product) errors.productId = "Select a product";
+    else if (product.status !== "active") errors.productId = "This product is inactive — reactivate it before adding stock";
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Enter a whole number greater than zero";
     if (Object.keys(errors).length) return { ok: false, errors };
     const at = nowOnReferenceDay(current);
@@ -211,7 +215,9 @@ export const mockStockRequestService = {
     const branch = current.branches.find((b) => b.id === input.branchId);
     if (!branch || branch.status !== "active") errors.branchId = "Select an active branch";
     else if (scope.user.branchId !== branch.id) errors.branchId = "You can only request stock for your own branch";
-    if (!current.products.some((p) => p.id === input.productId)) errors.productId = "Select a product";
+    const product = current.products.find((p) => p.id === input.productId);
+    if (!product) errors.productId = "Select a product";
+    else if (product.status !== "active") errors.productId = "This product is inactive and cannot be requested";
     else if (branch && !findInventory(current, branch.id, input.productId)) errors.productId = "This branch does not stock this product";
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Enter a whole number greater than zero";
     if (Object.keys(errors).length) return { ok: false, errors };
@@ -272,37 +278,123 @@ export const mockStockRequestService = {
   },
 };
 
-// Swap points for the live API.
 // ---------- products ----------
-export type ProductInput = { name: string; sku: string; category: string; unit: string; unitPrice: number; unitCost: number; lowStockThreshold: number };
+export type ProductInput = { name: string; sku: string; category: string; unit: string; unitPrice: number; unitCost: number; lowStockThreshold: number; description?: string };
+export function validateProduct(db: Db, input: ProductInput, editingId?: string) {
+  const errors: FieldErrors = {};
+  const sku = input.sku.trim().toUpperCase();
+  if (!input.name.trim()) errors.name = "Enter a product name";
+  if (!sku) errors.sku = "Enter a SKU";
+  else if (db.products.some((p) => p.id !== editingId && p.tenantId === db.tenant.id && p.sku.toUpperCase() === sku)) errors.sku = "This SKU is already used by another product";
+  if (!input.category.trim()) errors.category = "Enter a category";
+  if (!input.unit.trim()) errors.unit = "Select a unit";
+  if (!Number.isFinite(input.unitPrice) || input.unitPrice <= 0) errors.unitPrice = "Enter a selling price above zero";
+  if (!Number.isFinite(input.unitCost) || input.unitCost < 0) errors.unitCost = "Enter a unit cost of zero or more";
+  else if (input.unitCost > input.unitPrice) errors.unitCost = "Unit cost cannot exceed selling price";
+  if (!Number.isInteger(input.lowStockThreshold) || input.lowStockThreshold < 0) errors.threshold = "Enter a whole number of zero or more";
+  return errors;
+}
+const clean = (input: ProductInput) => ({
+  name: input.name.trim(), sku: input.sku.trim().toUpperCase(), category: input.category.trim(), unit: input.unit.trim(),
+  unitPrice: input.unitPrice, unitCost: input.unitCost, lowStockThreshold: input.lowStockThreshold,
+  ...(input.description?.trim() ? { description: input.description.trim() } : {}),
+});
+
 export const mockProductService = {
-  /** Adds to the shared catalogue and opens a zero-stock inventory record at the storekeeper's branch. */
+  /** Adds to the shared catalogue and opens zero-stock inventory records in the actor's branches. */
   async create(input: ProductInput, actorId: string): Promise<Result<Product>> {
     await latency();
     const current = getDb();
     const scope = getAccessScope(current, actorId);
-    if (!scope.canManageProducts) return { ok: false, errors: { form: "Only storekeepers can add products" } };
-    const errors: FieldErrors = {};
-    const sku = input.sku.trim().toUpperCase();
-    if (!input.name.trim()) errors.name = "Enter a product name";
-    if (!sku) errors.sku = "Enter a SKU";
-    else if (current.products.some((p) => p.sku.toUpperCase() === sku)) errors.sku = "This SKU already exists";
-    if (!input.category.trim()) errors.category = "Enter a category";
-    if (!input.unit.trim()) errors.unit = "Enter a unit";
-    if (!(input.unitPrice > 0)) errors.unitPrice = "Enter a selling price above zero";
-    if (!(input.unitCost >= 0)) errors.unitCost = "Enter a unit cost of zero or more";
-    else if (input.unitCost > input.unitPrice) errors.unitCost = "Unit cost cannot exceed selling price";
-    if (!Number.isInteger(input.lowStockThreshold) || input.lowStockThreshold < 0) errors.threshold = "Enter a whole number of zero or more";
+    if (!scope.canManageProducts) return { ok: false, errors: { form: "You cannot add products" } };
+    const errors = validateProduct(current, input);
     if (Object.keys(errors).length) return { ok: false, errors };
-    const product: Product = { id: `prod-${String(current.products.length + 1).padStart(3, "0")}-${Date.now().toString(36)}`, tenantId: current.tenant.id, name: input.name.trim(), sku, category: input.category.trim(), unit: input.unit.trim(), unitPrice: input.unitPrice, unitCost: input.unitCost };
     const at = nowOnReferenceDay(current);
+    const product: Product = { id: `product-${String(current.products.length + 1).padStart(3, "0")}-${Date.now().toString(36)}`, tenantId: current.tenant.id, ...clean(input), status: "active", createdAt: at, updatedAt: at };
     const branchIds = scope.branchIds ?? current.branches.filter((b) => b.status === "active").map((b) => b.id);
     const records: InventoryRecord[] = branchIds.map((branchId, i) => ({ id: `inv-${product.id}-${i}`, tenantId: current.tenant.id, branchId, productId: product.id, quantityOnHand: 0, quantityReserved: 0, lowStockThreshold: input.lowStockThreshold, reorderLevel: input.lowStockThreshold * 2, lastUpdated: at }));
-    setDb((d) => ({ ...d, products: [...d.products, product], inventory: [...d.inventory, ...records], activities: [activity(d, actorId, "Product added", `${product.name} · ${product.sku}`), ...d.activities] }));
+    setDb((d) => ({ ...d, products: [...d.products, product], inventory: [...d.inventory, ...records], activities: [activity(d, actorId, "Product created", `${product.name} · ${product.sku}`), ...d.activities] }));
+    return { ok: true, data: product };
+  },
+  /** Edits catalogue fields; branch thresholds still on the old default follow the new default. */
+  async update(id: string, input: ProductInput, actorId: string): Promise<Result<Product>> {
+    await latency();
+    const current = getDb();
+    if (!getAccessScope(current, actorId).canManageProducts) return { ok: false, errors: { form: "You cannot edit products" } };
+    const existing = current.products.find((p) => p.id === id);
+    if (!existing) return { ok: false, errors: { form: "Product not found" } };
+    const errors = validateProduct(current, input, id);
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const { description: _drop, ...rest } = existing;
+    const product: Product = { ...rest, ...clean(input), updatedAt: nowOnReferenceDay(current) };
+    setDb((d) => ({
+      ...d, products: d.products.map((p) => (p.id === id ? product : p)),
+      inventory: d.inventory.map((i) => (i.productId === id && i.lowStockThreshold === existing.lowStockThreshold ? { ...i, lowStockThreshold: product.lowStockThreshold } : i)),
+      activities: [activity(d, actorId, "Product edited", `${product.name} · ${product.sku}`), ...d.activities],
+    }));
+    return { ok: true, data: product };
+  },
+  /** Soft status change — history (sales, requests, movements) stays intact. */
+  async setStatus(id: string, status: ProductStatus, actorId: string): Promise<Result<Product>> {
+    await latency();
+    const current = getDb();
+    if (!getAccessScope(current, actorId).canManageProducts) return { ok: false, errors: { form: "You cannot change product status" } };
+    const existing = current.products.find((p) => p.id === id);
+    if (!existing) return { ok: false, errors: { form: "Product not found" } };
+    const product: Product = { ...existing, status, updatedAt: nowOnReferenceDay(current) };
+    setDb((d) => ({ ...d, products: d.products.map((p) => (p.id === id ? product : p)), activities: [activity(d, actorId, status === "active" ? "Product activated" : "Product deactivated", `${product.name} · ${product.sku}`), ...d.activities] }));
     return { ok: true, data: product };
   },
 };
 
+// ---------- targets ----------
+export type TargetInput = { repId: string; month: string; amount: number };
+export function validateTarget(db: Db, input: TargetInput, actorId: string, editingId?: string) {
+  const errors: FieldErrors = {};
+  const scope = getAccessScope(db, actorId);
+  const rep = db.users.find((u) => u.id === input.repId);
+  if (!rep) errors.repId = "Select a sales representative";
+  else if (rep.role !== "sales_rep") errors.repId = "Targets can only be set for sales representatives";
+  else if (rep.status !== "active") errors.repId = "This sales representative is inactive";
+  else if (!rep.branchId) errors.repId = "This sales representative has no branch";
+  else if (scope.branchIds && !scope.branchIds.includes(rep.branchId)) errors.repId = "You can only set targets for your branch";
+  if (!/^\d{4}-\d{2}$/.test(input.month)) errors.month = "Select a month";
+  if (!Number.isFinite(input.amount) || input.amount <= 0) errors.amount = "Enter a target above zero";
+  if (!errors.repId && !errors.month && db.targets.some((t) => t.id !== editingId && t.scope === "rep" && t.userId === input.repId && t.month === input.month))
+    errors.repId = "This rep already has a target for that month — edit it instead";
+  return errors;
+}
+export const mockTargetService = {
+  async create(input: TargetInput, actorId: string): Promise<Result<Target>> {
+    await latency();
+    const current = getDb();
+    if (!getAccessScope(current, actorId).canManageTargets) return { ok: false, errors: { form: "You cannot set targets" } };
+    const errors = validateTarget(current, input, actorId);
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const rep = current.users.find((u) => u.id === input.repId)!;
+    const at = nowOnReferenceDay(current);
+    const target: Target = { id: `target-${rep.id}-${input.month}`, tenantId: current.tenant.id, scope: "rep", branchId: rep.branchId!, userId: rep.id, month: input.month, amount: Math.round(input.amount), createdAt: at, updatedAt: at };
+    setDb((d) => ({ ...d, targets: [...d.targets, target], activities: [activity(d, actorId, "Target created", `${rep.name} · ${input.month} · ₦${target.amount.toLocaleString("en-NG")}`), ...d.activities] }));
+    return { ok: true, data: target };
+  },
+  /** Changes only the amount — sales history is never touched. */
+  async update(id: string, amount: number, actorId: string): Promise<Result<Target>> {
+    await latency();
+    const current = getDb();
+    const existing = current.targets.find((t) => t.id === id && t.scope === "rep");
+    if (!existing) return { ok: false, errors: { form: "Target not found" } };
+    if (!getAccessScope(current, actorId).canManageTargets) return { ok: false, errors: { form: "You cannot edit targets" } };
+    const errors = validateTarget(current, { repId: existing.userId ?? "", month: existing.month, amount }, actorId, id);
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const target: Target = { ...existing, amount: Math.round(amount), updatedAt: nowOnReferenceDay(current) };
+    const rep = current.users.find((u) => u.id === existing.userId)?.name;
+    setDb((d) => ({ ...d, targets: d.targets.map((t) => (t.id === id ? target : t)), activities: [activity(d, actorId, "Target updated", `${rep} · ${existing.month} · ₦${existing.amount.toLocaleString("en-NG")} → ₦${target.amount.toLocaleString("en-NG")}`), ...d.activities] }));
+    return { ok: true, data: target };
+  },
+};
+
+// Swap points for the live API.
+export const targetService = mockTargetService;
 export const productService = mockProductService;
 export const branchService = mockBranchService;
 export const salesService = mockSalesService;

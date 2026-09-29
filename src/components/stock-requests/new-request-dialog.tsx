@@ -23,7 +23,7 @@ export function NewRequestDialog({ open, onOpenChange, scope }: { open: boolean;
   const [saving, setSaving] = useState(false);
   useEffect(() => { if (open) { setForm({ productId: "", quantity: "", note: "" }); setErrors({}); } }, [open]);
 
-  const stocked = db.products.filter((p) => findInventory(db, branchId, p.id));
+  const stocked = db.products.filter((p) => p.status === "active" && findInventory(db, branchId, p.id));
   const inv = form.productId ? findInventory(db, branchId, form.productId) : null;
   const available = inv ? getAvailable(inv) : 0;
   const qty = Number(form.quantity);
