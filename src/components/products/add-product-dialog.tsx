@@ -38,7 +38,7 @@ export function ProductFormDialog({ open, onOpenChange, actorId, product, catego
   }
 
   const field = (k: Key, label: string, err: keyof FieldErrors, props: Record<string, unknown> = {}) => (
-    <div><Label htmlFor={`p-${k}`} className="text-xs">{label}</Label><Input id={`p-${k}`} value={form[k]} onChange={(e) => set(k, e.target.value)} className="mt-1.5 h-9" aria-invalid={!!errors[err]} {...props} /><FieldError message={errors[err]} /></div>
+    <div><Label htmlFor={`p-${k}`} className="text-xs">{label}</Label><Input id={`p-${k}`} value={form[k]} onChange={(e) => set(k, e.target.value)} className="mt-1.5 h-9" aria-invalid={!!errors[err]} {...props} /><FieldError message={errors[err] as string | undefined} /></div>
   );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
