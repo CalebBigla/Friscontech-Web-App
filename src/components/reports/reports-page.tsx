@@ -11,6 +11,7 @@ import { ALL, EmptyState, FilterSelect, MetricCard, Panel, StockStatusBadge } fr
 import { TargetProgressBar, TargetStatusBadge } from "@/components/targets/target-shared";
 import { useDb } from "@/services/mock-store";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
+import { getPreferences } from "@/services/services";
 import { getPeriodRange, type PeriodKey } from "@/lib/dates";
 import { saleTotal } from "@/lib/calculations";
 import { formatDate, formatMonth, formatNaira, formatNumber, formatPercent } from "@/lib/format";
@@ -32,7 +33,7 @@ export function ReportsPage() {
   const db = useDb();
   const scope = getAccessScope(db, useCurrentUserId());
   const today = db.tenant.referenceDate;
-  const init: Draft = { type: "sales", period: "month", from: `${today.slice(0, 7)}-01`, to: today, branchId: ALL, repId: ALL, productId: ALL };
+  const init: Draft = { type: "sales", period: getPreferences(db, scope.user.id).defaultReportPeriod, from: `${today.slice(0, 7)}-01`, to: today, branchId: ALL, repId: ALL, productId: ALL };
   const [draft, setDraft] = useState(init);
   const [applied, setApplied] = useState(init);
   const [loading, setLoading] = useState(false);
