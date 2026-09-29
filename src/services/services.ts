@@ -2,12 +2,13 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
+import type { Role, User, UserStatus, Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
 import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
 import { getAccessScope } from "@/lib/session";
+import { assignableRoles, canEditMember, roleNeedsBranch } from "@/lib/team";
 import { getDb, setDb } from "@/services/mock-store";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount" | "role" | "status", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
@@ -394,6 +395,89 @@ export const mockTargetService = {
 };
 
 // Swap points for the live API.
+// ---------- team (views over db.users; never deletes) ----------
+export type TeamMemberInput = { name: string; email: string; role: Role; branchId: string; status: UserStatus };
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function validateTeamMember(db: Db, input: TeamMemberInput, actorId: string, editingId?: string) {
+  const scope = getAccessScope(db, actorId);
+  const e: FieldErrors = {};
+  const existing = editingId ? db.users.find((u) => u.id === editingId) : undefined;
+  if (!scope.canManageTeam) e.form = "You don't have permission to manage the team.";
+  if (existing && !canEditMember(scope, existing)) e.form = "You can't edit this team member.";
+  if (input.name.trim().length < 2) e.name = "Enter the member's full name.";
+  const email = input.email.trim().toLowerCase();
+  if (!email) e.email = "Email is required.";
+  else if (!EMAIL.test(email)) e.email = "Enter a valid email address.";
+  else if (db.users.some((u) => u.email.toLowerCase() === email && u.id !== editingId)) e.email = "Someone on the team already uses this email.";
+  const roleUnchanged = existing?.role === input.role;
+  if (!assignableRoles(scope).includes(input.role) && !roleUnchanged) e.role = "You can't assign this role.";
+  const branch = db.branches.find((b) => b.id === input.branchId);
+  if (roleNeedsBranch(input.role) && !input.branchId) e.branchId = "Select the branch this member works at.";
+  if (input.branchId) {
+    if (!branch || branch.tenantId !== db.tenant.id) e.branchId = "Select a valid branch.";
+    else if (scope.branchIds && !scope.branchIds.includes(branch.id)) e.branchId = "You can only assign members to your own branch.";
+    else if (branch.status !== "active" && input.status === "active") e.branchId = "This branch is inactive.";
+    else if (input.role === "manager" && branch.managerId && branch.managerId !== editingId && db.users.find((u) => u.id === branch.managerId)?.status === "active")
+      e.branchId = `${branch.name} already has a manager.`;
+  }
+  if (!["active", "inactive", "pending"].includes(input.status)) e.status = "Choose a valid status.";
+  return e;
+}
+const branchManager = (d: Db, role: Role, branchId: string | null) =>
+  roleNeedsBranch(role) && branchId ? d.branches.find((b) => b.id === branchId)?.managerId ?? null : null;
+/** Keep branch.managerId in sync when a manager is (re)assigned. */
+function syncBranches(d: Db, user: User, previous?: User) {
+  return d.branches.map((b) => {
+    if (previous?.role === "manager" && b.managerId === user.id && (user.role !== "manager" || b.id !== user.branchId)) return { ...b, managerId: null };
+    if (user.role === "manager" && b.id === user.branchId && !b.managerId) return { ...b, managerId: user.id };
+    return b;
+  });
+}
+
+export const mockTeamService = {
+  async create(input: TeamMemberInput, actorId: string): Promise<Result<User>> {
+    await latency();
+    const db = getDb();
+    const errors = validateTeamMember(db, input, actorId);
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const n = db.users.reduce((m, u) => Math.max(m, Number(u.id.slice(5)) || 0), 0) + 1;
+    const branchId = input.branchId || null;
+    const user: User = { id: `user-${String(n).padStart(3, "0")}`, tenantId: db.tenant.id, name: input.name.trim(), email: input.email.trim().toLowerCase(), role: input.role, branchId, managerId: branchManager(db, input.role, branchId), status: input.status, createdAt: nowOnReferenceDay(db) };
+    setDb((d) => ({ ...d, users: [...d.users, user], branches: syncBranches(d, user), activities: [activity(d, actorId, "Team member created", `${user.name} · ${input.role.replace("_", " ")}`), ...d.activities] }));
+    return { ok: true, data: user };
+  },
+  async update(id: string, input: TeamMemberInput, actorId: string): Promise<Result<User>> {
+    await latency();
+    const db = getDb();
+    const prev = db.users.find((u) => u.id === id);
+    if (!prev) return { ok: false, errors: { form: "Team member not found." } };
+    const errors = validateTeamMember(db, input, actorId, id);
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const branchId = input.branchId || null;
+    const user: User = { ...prev, name: input.name.trim(), email: input.email.trim().toLowerCase(), role: input.role, branchId, managerId: branchManager(db, input.role, branchId), status: input.status };
+    const branchName = (bid: string | null) => db.branches.find((b) => b.id === bid)?.name ?? "Unassigned";
+    setDb((d) => {
+      const acts = [activity(d, actorId, "Team member edited", user.name)];
+      if (prev.role !== user.role) acts.push(activity(d, actorId, "Role changed", `${user.name} · ${prev.role.replace("_", " ")} → ${user.role.replace("_", " ")}`));
+      if (prev.branchId !== user.branchId) acts.push(activity(d, actorId, "Branch assignment changed", `${user.name} · ${branchName(prev.branchId)} → ${branchName(user.branchId)}`));
+      if (prev.status !== user.status) acts.push(activity(d, actorId, user.status === "active" ? "Team member activated" : "Team member deactivated", user.name));
+      return { ...d, users: d.users.map((u) => (u.id === id ? user : u)), branches: syncBranches(d, user, prev), activities: [...acts.reverse(), ...d.activities] };
+    });
+    return { ok: true, data: user };
+  },
+  /** Soft (de)activation — sales, targets, requests and movements keep referencing the user. */
+  async setStatus(id: string, status: "active" | "inactive", actorId: string): Promise<Result<User>> {
+    await latency();
+    const db = getDb();
+    const prev = db.users.find((u) => u.id === id);
+    if (!prev || !canEditMember(getAccessScope(db, actorId), prev)) return { ok: false, errors: { form: "You can't change this member's status." } };
+    const user = { ...prev, status };
+    setDb((d) => ({ ...d, users: d.users.map((u) => (u.id === id ? user : u)), activities: [activity(d, actorId, status === "active" ? "Team member activated" : "Team member deactivated", user.name), ...d.activities] }));
+    return { ok: true, data: user };
+  },
+};
+
+export const teamService = mockTeamService;
 export const targetService = mockTargetService;
 export const productService = mockProductService;
 export const branchService = mockBranchService;

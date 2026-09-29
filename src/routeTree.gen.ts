@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SalesRouteImport } from './routes/sales'
 import { Route as StockMovementsRouteImport } from './routes/stock-movements'
 import { Route as BranchesIndexRouteImport } from './routes/branches.index'
@@ -23,6 +24,8 @@ import { Route as StockRequestsIndexRouteImport } from './routes/stock-requests.
 import { Route as StockRequestsRequestIdRouteImport } from './routes/stock-requests.$requestId'
 import { Route as TargetsIndexRouteImport } from './routes/targets.index'
 import { Route as TargetsTargetIdRouteImport } from './routes/targets.$targetId'
+import { Route as TeamIndexRouteImport } from './routes/team.index'
+import { Route as TeamUserIdRouteImport } from './routes/team.$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuditLogRoute = AuditLogRouteImport.update({
   id: '/audit-log',
   path: '/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalesRoute = SalesRouteImport.update({
@@ -94,10 +102,21 @@ const TargetsTargetIdRoute = TargetsTargetIdRouteImport.update({
   path: '/targets/$targetId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamIndexRoute = TeamIndexRouteImport.update({
+  id: '/team/',
+  path: '/team/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamUserIdRoute = TeamUserIdRouteImport.update({
+  id: '/team/$userId',
+  path: '/team/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
+  '/reports': typeof ReportsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -105,15 +124,18 @@ export interface FileRoutesByFullPath {
   '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
+  '/team/$userId': typeof TeamUserIdRoute
   '/branches/': typeof BranchesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/stock-requests/': typeof StockRequestsIndexRoute
   '/targets/': typeof TargetsIndexRoute
+  '/team/': typeof TeamIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
+  '/reports': typeof ReportsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -121,16 +143,19 @@ export interface FileRoutesByTo {
   '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
+  '/team/$userId': typeof TeamUserIdRoute
   '/branches': typeof BranchesIndexRoute
   '/inventory': typeof InventoryIndexRoute
   '/products': typeof ProductsIndexRoute
   '/stock-requests': typeof StockRequestsIndexRoute
   '/targets': typeof TargetsIndexRoute
+  '/team': typeof TeamIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit-log': typeof AuditLogRoute
+  '/reports': typeof ReportsRoute
   '/sales': typeof SalesRoute
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
@@ -138,17 +163,20 @@ export interface FileRoutesById {
   '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
+  '/team/$userId': typeof TeamUserIdRoute
   '/branches/': typeof BranchesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/stock-requests/': typeof StockRequestsIndexRoute
   '/targets/': typeof TargetsIndexRoute
+  '/team/': typeof TeamIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/audit-log'
+    | '/reports'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -156,15 +184,18 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/stock-requests/$requestId'
     | '/targets/$targetId'
+    | '/team/$userId'
     | '/branches/'
     | '/inventory/'
     | '/products/'
     | '/stock-requests/'
     | '/targets/'
+    | '/team/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/audit-log'
+    | '/reports'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -172,15 +203,18 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/stock-requests/$requestId'
     | '/targets/$targetId'
+    | '/team/$userId'
     | '/branches'
     | '/inventory'
     | '/products'
     | '/stock-requests'
     | '/targets'
+    | '/team'
   id:
     | '__root__'
     | '/'
     | '/audit-log'
+    | '/reports'
     | '/sales'
     | '/stock-movements'
     | '/branches/$branchId'
@@ -188,16 +222,19 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/stock-requests/$requestId'
     | '/targets/$targetId'
+    | '/team/$userId'
     | '/branches/'
     | '/inventory/'
     | '/products/'
     | '/stock-requests/'
     | '/targets/'
+    | '/team/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditLogRoute: typeof AuditLogRoute
+  ReportsRoute: typeof ReportsRoute
   SalesRoute: typeof SalesRoute
   StockMovementsRoute: typeof StockMovementsRoute
   BranchesBranchIdRoute: typeof BranchesBranchIdRoute
@@ -205,11 +242,13 @@ export interface RootRouteChildren {
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   StockRequestsRequestIdRoute: typeof StockRequestsRequestIdRoute
   TargetsTargetIdRoute: typeof TargetsTargetIdRoute
+  TeamUserIdRoute: typeof TeamUserIdRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
   StockRequestsIndexRoute: typeof StockRequestsIndexRoute
   TargetsIndexRoute: typeof TargetsIndexRoute
+  TeamIndexRoute: typeof TeamIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -226,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-log'
       fullPath: '/audit-log'
       preLoaderRoute: typeof AuditLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sales': {
@@ -312,12 +358,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TargetsTargetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/': {
+      id: '/team/'
+      path: '/team'
+      fullPath: '/team/'
+      preLoaderRoute: typeof TeamIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team/$userId': {
+      id: '/team/$userId'
+      path: '/team/$userId'
+      fullPath: '/team/$userId'
+      preLoaderRoute: typeof TeamUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditLogRoute: AuditLogRoute,
+  ReportsRoute: ReportsRoute,
   SalesRoute: SalesRoute,
   StockMovementsRoute: StockMovementsRoute,
   BranchesBranchIdRoute: BranchesBranchIdRoute,
@@ -325,11 +386,13 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsProductIdRoute: ProductsProductIdRoute,
   StockRequestsRequestIdRoute: StockRequestsRequestIdRoute,
   TargetsTargetIdRoute: TargetsTargetIdRoute,
+  TeamUserIdRoute: TeamUserIdRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
   StockRequestsIndexRoute: StockRequestsIndexRoute,
   TargetsIndexRoute: TargetsIndexRoute,
+  TeamIndexRoute: TeamIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
