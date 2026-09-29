@@ -14,7 +14,9 @@ export type Branch = {
   id: string; tenantId: string; name: string; code: string; location: string; address: string;
   phone: string; email: string; managerId: string | null; status: BranchStatus; createdAt: string;
 };
-export type User = { id: string; tenantId: string; name: string; email: string; role: Role; branchId: string | null; status: "active" | "inactive" };
+export type UserStatus = "active" | "inactive" | "pending";
+/** managerId = the manager this member reports to (null for owner/managers). */
+export type User = { id: string; tenantId: string; name: string; email: string; role: Role; branchId: string | null; managerId: string | null; status: UserStatus; createdAt: string };
 export type ProductStatus = "active" | "inactive";
 /** unitPrice is the selling price (PRD: selling_price). Branch stock lives in InventoryRecord, never here. */
 export type Product = {
@@ -77,7 +79,8 @@ const branches: Branch[] = [
 ];
 
 const u = (id: string, name: string, role: Role, branchId: string | null): User => ({
-  id, tenantId: T, name, role, branchId, status: "active",
+  id, tenantId: T, name, role, branchId, status: "active", managerId: null,
+  createdAt: `202${Number(id.slice(-2)) % 3 === 0 ? 4 : 5}-${String(1 + (Number(id.slice(-2)) % 12)).padStart(2, "0")}-${String(3 + (Number(id.slice(-2)) % 24)).padStart(2, "0")}T09:00:00`,
   email: `${name.split(" ")[0]!.toLowerCase()}.${name.split(" ")[1]!.toLowerCase()}@westfield.ng`,
 });
 
@@ -107,7 +110,12 @@ const users: User[] = [
   u("user-023", "Yemi Cole", "storekeeper", "branch-002"),
   u("user-024", "Musa Danladi", "storekeeper", "branch-003"),
   u("user-025", "Joy Uzor", "storekeeper", "branch-005"),
+  { ...u("user-026", "Tunde Bakare", "sales_rep", "branch-001"), status: "pending", createdAt: "2026-09-24T10:30:00" },
+  { ...u("user-027", "Efe Omoregie", "sales_rep", "branch-002"), status: "inactive", createdAt: "2025-02-14T09:00:00" },
 ];
+// Staff report to the manager of their branch.
+for (const x of users) if ((x.role === "sales_rep" || x.role === "storekeeper") && x.branchId)
+  x.managerId = users.find((m) => m.role === "manager" && m.branchId === x.branchId)?.id ?? null;
 
 const p = (id: string, name: string, sku: string, category: string, unitPrice: number, unitCost: number, unit = "Piece"): Product => ({
   id, tenantId: T, name, sku, category, unit, unitPrice, unitCost, lowStockThreshold: unitPrice > 800_000 ? 5 : 15, status: "active",
@@ -147,7 +155,7 @@ function seedSales(): Sale[] {
   const rand = rng(42);
   const out: Sale[] = [];
   let n = 1;
-  const reps = users.filter((x) => x.role === "sales_rep");
+  const reps = users.filter((x) => x.role === "sales_rep" && x.status === "active");
   for (let day = 119; day >= 0; day--) {
     const date = addDays(REF, -day);
     for (const branch of branches) {
@@ -188,7 +196,7 @@ function seedTargets(): Target[] {
     for (const branch of branches) {
       const amount = branchTargetBase[branch.id] ?? 0;
       out.push({ id: `target-${branch.id}-${month}`, tenantId: T, scope: "branch", branchId: branch.id, userId: null, month, amount, createdAt: `${month}-01T08:00:00`, updatedAt: `${month}-01T08:00:00` });
-      const reps = users.filter((x) => x.role === "sales_rep" && x.branchId === branch.id);
+      const reps = users.filter((x) => x.role === "sales_rep" && x.status === "active" && x.branchId === branch.id);
       for (const rep of reps) {
         out.push({ id: `target-${rep.id}-${month}`, tenantId: T, scope: "rep", branchId: branch.id, userId: rep.id, month, amount: Math.round(amount / reps.length / 100_000) * 100_000, createdAt: `${month}-01T08:00:00`, updatedAt: `${month}-01T08:00:00` });
       }

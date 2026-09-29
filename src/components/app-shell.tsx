@@ -12,7 +12,7 @@ import { useDb } from "@/services/mock-store";
 import { getAccessScope, setCurrentUserId, useCurrentUserId, type AccessScope } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log";
+type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log" | "/team" | "/reports";
 type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 const managementSections: NavSection[] = [
@@ -24,7 +24,7 @@ const managementSections: NavSection[] = [
     { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
     { label: "Targets", icon: Target, to: "/targets" },
   ] },
-  { title: "Management", items: [{ label: "Products", icon: Package, to: "/products" }, { label: "Users", icon: Users }, { label: "Reports", icon: BarChart3 }] },
+  { title: "Management", items: [{ label: "Products", icon: Package, to: "/products" }, { label: "Team", icon: Users, to: "/team" }, { label: "Reports", icon: BarChart3, to: "/reports" }] },
   { title: "System", items: [{ label: "Audit Log", icon: ClipboardCheck }, { label: "Settings", icon: Settings }] },
 ];
 const repSections: NavSection[] = [
