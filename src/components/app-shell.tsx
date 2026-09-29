@@ -17,9 +17,9 @@ type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "
 type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 const managementSections: NavSection[] = [
-  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
+  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/", ownerOnly: true }] },
   { title: "Operations", items: [
-    { label: "Branches", icon: Store, to: "/branches", ownerOnly: true },
+    { label: "Branches", icon: Store, to: "/branches" },
     { label: "Sales", icon: ShoppingCart, to: "/sales", needsSales: true },
     { label: "Inventory", icon: Boxes, to: "/inventory" },
     { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
