@@ -126,6 +126,8 @@ const products: Product[] = [
   p("product-010", "Tecno Spark 30", "TCN-SP30", "Phones", 165_000, 129_000),
   p("product-011", "Oraimo Power Bank 20,000mAh", "ORM-PB20", "Accessories", 28_000, 19_500),
   p("product-012", "HP EliteBook 840 G8", "HP-EB840", "Computers", 890_000, 724_000),
+  { ...p("product-013", "Dell Latitude 5420", "DEL-LT5420", "Computers", 760_000, 615_000), status: "inactive", description: "Discontinued by supplier — kept for sales history.", updatedAt: "2026-09-04" },
+  { ...p("product-014", "Oraimo FreePods 4 (5-pack)", "ORM-FP4-5", "Audio", 140_000, 102_000, "Pack"), description: "Retail pack of five wireless earbuds." },
 ];
 
 // ---------- deterministic seed helpers (pure arithmetic, safe at module scope) ----------
