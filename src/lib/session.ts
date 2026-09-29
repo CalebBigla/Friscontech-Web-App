@@ -40,10 +40,20 @@ export type AccessScope = {
   canManageTeam: boolean;
   /** Reports module (owner + manager, scoped by branchIds) */
   canViewReports: boolean;
+  /** everyone; the audit selector limits rows (owner org, manager branch, others own) */
+  canViewAuditLogs: boolean;
+  /** owner: edit business + organization settings */
+  canManageSettings: boolean;
+  /** owner + manager: see business + organization details */
+  canViewOrganizationSettings: boolean;
 };
 
 const none = { canManageStock: false, canReviewRequests: false, canFulfillRequests: false, canCreateRequests: false, canViewBranches: false, canManageProducts: false, canViewInventoryAdmin: true, canManageTargets: false, canManageTeam: false, canViewReports: false };
 export function getAccessScope(db: Db, userId: string): AccessScope {
+  const s = baseScope(db, userId);
+  return { ...s, canViewAuditLogs: true, canManageSettings: s.user.role === "owner", canViewOrganizationSettings: s.user.role === "owner" || s.user.role === "manager" };
+}
+function baseScope(db: Db, userId: string): Omit<AccessScope, "canViewAuditLogs" | "canManageSettings" | "canViewOrganizationSettings"> {
   const user = (db.users.find((x) => x.id === userId) ?? db.users[0])!;
   const own = user.branchId ? [user.branchId] : [];
   switch (user.role) {
