@@ -9,10 +9,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useDb } from "@/services/mock-store";
+import { sessionService } from "@/services/services";
 import { getAccessScope, setCurrentUserId, useCurrentUserId, type AccessScope } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log" | "/team" | "/reports";
+type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log" | "/team" | "/reports" | "/settings";
 type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 const managementSections: NavSection[] = [
@@ -22,22 +23,23 @@ const managementSections: NavSection[] = [
     { label: "Sales", icon: ShoppingCart, to: "/sales", needsSales: true },
     { label: "Inventory", icon: Boxes, to: "/inventory" },
     { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
+    { label: "Products", icon: Package, to: "/products" },
     { label: "Targets", icon: Target, to: "/targets" },
+    { label: "Reports", icon: BarChart3, to: "/reports" },
   ] },
-  { title: "Management", items: [{ label: "Products", icon: Package, to: "/products" }, { label: "Team", icon: Users, to: "/team" }, { label: "Reports", icon: BarChart3, to: "/reports" }] },
-  { title: "System", items: [{ label: "Audit Log", icon: ClipboardCheck }, { label: "Settings", icon: Settings }] },
+  { title: "Administration", items: [{ label: "Team", icon: Users, to: "/team" }, { label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }, { label: "Settings", icon: Settings, to: "/settings" }] },
 ];
 const repSections: NavSection[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
   { title: "Sales", items: [{ label: "My Sales", icon: ShoppingCart, to: "/sales" }, { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
   { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }, { label: "Products", icon: Package, to: "/products" }] },
-  { title: "Accountability", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }] },
+  { title: "Account", items: [{ label: "My Activity", icon: ClipboardCheck, to: "/audit-log" }, { label: "Settings", icon: Settings, to: "/settings" }] },
 ];
 const storekeeperSections: NavSection[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
   { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }, { label: "Products", icon: Package, to: "/products" }, { label: "Stock Movements", icon: ArrowLeftRight, to: "/stock-movements" }] },
   { title: "Operations", items: [{ label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
-  { title: "Accountability", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }] },
+  { title: "Account", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }, { label: "Settings", icon: Settings, to: "/settings" }] },
 ];
 const sectionsFor = (role: string) => role === "sales_rep" ? repSections : role === "storekeeper" ? storekeeperSections : managementSections;
 
@@ -97,7 +99,7 @@ export function AppShell({ title, subtitle, headerExtra, actions, children }: { 
               <DropdownMenuLabel className="text-xs">View as (demo)</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {demoUserIds.map((id) => { const x = db.users.find((usr) => usr.id === id)!; return (
-                <DropdownMenuItem key={id} onClick={() => setCurrentUserId(id)} className="flex-col items-start gap-0">
+                <DropdownMenuItem key={id} onClick={() => { sessionService.switchUser(userId, id); setCurrentUserId(id); }} className="flex-col items-start gap-0">
                   <span className="text-xs font-bold">{x.name}</span><span className="text-[11px] text-muted-foreground">{roleLabel[x.role]}</span>
                 </DropdownMenuItem>
               ); })}

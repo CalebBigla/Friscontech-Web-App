@@ -24,3 +24,5 @@
 - Products are soft-deactivated (`status`), never deleted; services refuse inactive products for new sales, stock requests and stock additions so history stays intact.
 - Team is a view over `db.users` via `src/lib/team.ts` (`canAccessMember`, `getTeamMembers`) and writes via `teamService`; so managers never receive other teams' users and users are only soft-deactivated.
 - Reports (`src/lib/reports.ts`) only compose existing Sales/Targets/Inventory/Team selectors, scoped by `canViewReports` + `branchIds`; so reports never become a second source of truth.
+- Audit history is one dataset (`db.activities`, model in `src/data/auditLogs.ts`) written only via `createAuditLog` in services and read only via role-scoped selectors in `src/lib/audit.ts`; so no module keeps its own log and rows are filtered before reaching the UI.
+- Organization settings live on `db.tenant`, per-user preferences in `db.preferences`, written via `settingsService` (owner-only for tenant fields); passwords are never stored in app data.

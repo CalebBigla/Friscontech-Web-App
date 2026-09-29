@@ -2,11 +2,12 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { Role, User, UserStatus, Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
+import type { DateFormatPref, ReportPeriodPref, UserPreference, Role, User, UserStatus, Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
 import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
 import { getAccessScope } from "@/lib/session";
 import { assignableRoles, canEditMember, roleNeedsBranch } from "@/lib/team";
 import { getDb, setDb } from "@/services/mock-store";
+import { entityFromAction } from "@/data/auditLogs";
 
 export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount" | "role" | "status", string>>;
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
@@ -18,9 +19,17 @@ function nowOnReferenceDay(db: Db) {
   const d = new Date();
   return `${db.tenant.referenceDate}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
 }
-function activity(db: Db, actorId: string, action: string, subject: string): Activity {
-  return { id: `act-${db.activities.length + 1}-${Date.now()}`, tenantId: db.tenant.id, action, subject, actorId, createdAt: nowOnReferenceDay(db) };
+/** The single audit writer: every module appends to db.activities through here. Never pass secrets. */
+export function createAuditLog(db: Db, actorId: string, action: string, subject: string, ref: { entityId?: string; branchId?: string | null; productId?: string } = {}): Activity {
+  const branchId = ref.branchId === undefined ? db.users.find((u) => u.id === actorId)?.branchId ?? undefined : ref.branchId ?? undefined;
+  const entityId = ref.entityId ?? subject.match(/\b(SR-\d+|SAL-\d+)\b/)?.[1];
+  const metadata = { ...(branchId ? { branchId } : {}), ...(ref.productId ? { productId: ref.productId } : {}) };
+  return {
+    id: `act-${db.activities.length + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, tenantId: db.tenant.id, action, subject, actorId, createdAt: nowOnReferenceDay(db),
+    entity: entityFromAction(action), ...(entityId ? { entityId } : {}), ...(Object.keys(metadata).length ? { metadata } : {}),
+  };
 }
+const activity = createAuditLog;
 
 export function validateBranch(db: Db, input: BranchInput, editingId?: string) {
   const errors: FieldErrors = {};
@@ -484,3 +493,84 @@ export const branchService = mockBranchService;
 export const salesService = mockSalesService;
 export const stockRequestService = mockStockRequestService;
 export const inventoryService = mockInventoryService;
+
+/* ---------------- Settings ---------------- */
+export type GeneralSettingsInput = { name: string; businessEmail: string; phone: string; timezone: string };
+export type OrganizationInput = { legalName: string };
+export type PreferencesInput = { dateFormat: DateFormatPref; defaultReportPeriod: ReportPeriodPref };
+export type PasswordInput = { current: string; next: string; confirm: string };
+export type SettingsErrors = Partial<Record<"name" | "businessEmail" | "phone" | "timezone" | "legalName" | "current" | "next" | "confirm" | "form", string>>;
+type SettingsResult<T> = { ok: true; data: T } | { ok: false; errors: SettingsErrors };
+
+export const defaultPreferences = (userId: string): UserPreference => ({ userId, dateFormat: "MMM D, YYYY", defaultReportPeriod: "month", updatedAt: "" });
+export const getPreferences = (db: Db, userId: string) => db.preferences.find((p) => p.userId === userId) ?? defaultPreferences(userId);
+export const timezones = ["Africa/Lagos", "Africa/Accra", "Africa/Nairobi", "Africa/Johannesburg", "Europe/London"];
+const fieldLabel: Record<string, string> = { name: "business name", businessEmail: "business email", phone: "phone number", timezone: "timezone", legalName: "organization name" };
+
+export function validatePassword(input: PasswordInput): SettingsErrors {
+  const e: SettingsErrors = {};
+  if (!input.current) e.current = "Enter your current password";
+  if (!input.next) e.next = "Enter a new password";
+  else if (input.next.length < 8 || !/[A-Za-z]/.test(input.next) || !/\d/.test(input.next)) e.next = "Use at least 8 characters with a letter and a number";
+  else if (input.next === input.current) e.next = "New password must be different from the current one";
+  if (!input.confirm) e.confirm = "Confirm your new password";
+  else if (input.confirm !== input.next) e.confirm = "Passwords do not match";
+  return e;
+}
+
+export const settingsService = {
+  /** Owner only: business profile shown across the app. */
+  async updateGeneral(input: GeneralSettingsInput, actorId: string): Promise<SettingsResult<GeneralSettingsInput>> {
+    await latency();
+    const db = getDb();
+    if (!getAccessScope(db, actorId).canManageSettings) return { ok: false, errors: { form: "Only the business owner can change these settings." } };
+    const e: SettingsErrors = {};
+    if (!input.name.trim()) e.name = "Business name is required";
+    if (!/^\S+@\S+\.\S+$/.test(input.businessEmail.trim())) e.businessEmail = "Enter a valid email";
+    if (!/^\+?[\d\s-]{7,}$/.test(input.phone.trim())) e.phone = "Enter a valid phone number";
+    if (!timezones.includes(input.timezone)) e.timezone = "Select a timezone";
+    if (Object.keys(e).length) return { ok: false, errors: e };
+    const changed = (Object.keys(input) as (keyof GeneralSettingsInput)[]).filter((k) => input[k].trim() !== String(db.tenant[k]));
+    if (!changed.length) return { ok: true, data: input };
+    setDb((d) => ({ ...d, tenant: { ...d.tenant, name: input.name.trim(), businessEmail: input.businessEmail.trim(), phone: input.phone.trim(), timezone: input.timezone, updatedAt: nowOnReferenceDay(d) },
+      activities: [activity(d, actorId, "Settings updated", `Updated ${changed.map((k) => fieldLabel[k]).join(", ")}`, { branchId: null, entityId: d.tenant.id }), ...d.activities] }));
+    return { ok: true, data: input };
+  },
+  async updateOrganization(input: OrganizationInput, actorId: string): Promise<SettingsResult<OrganizationInput>> {
+    await latency();
+    const db = getDb();
+    if (!getAccessScope(db, actorId).canManageSettings) return { ok: false, errors: { form: "Only the business owner can change organization details." } };
+    if (!input.legalName.trim()) return { ok: false, errors: { legalName: "Organization name is required" } };
+    if (input.legalName.trim() === db.tenant.legalName) return { ok: true, data: input };
+    setDb((d) => ({ ...d, tenant: { ...d.tenant, legalName: input.legalName.trim(), updatedAt: nowOnReferenceDay(d) },
+      activities: [activity(d, actorId, "Settings updated", "Updated organization name", { branchId: null, entityId: d.tenant.id }), ...d.activities] }));
+    return { ok: true, data: input };
+  },
+  /** Any signed-in user, for their own account only. */
+  async updatePreferences(input: PreferencesInput, actorId: string): Promise<SettingsResult<UserPreference>> {
+    await latency();
+    const pref: UserPreference = { userId: actorId, ...input, updatedAt: nowOnReferenceDay(getDb()) };
+    setDb((d) => ({ ...d, preferences: [...d.preferences.filter((p) => p.userId !== actorId), pref],
+      activities: [activity(d, actorId, "Preferences updated", "Updated date format and default report period", { entityId: actorId }), ...d.activities] }));
+    return { ok: true, data: pref };
+  },
+  /**
+   * Demo mode: there is no sign-in system yet, so nothing is stored. When real accounts are added,
+   * this calls the auth provider's password update — passwords are never written to app data.
+   */
+  async changePassword(input: PasswordInput, actorId: string): Promise<SettingsResult<true>> {
+    await latency();
+    const e = validatePassword(input);
+    if (Object.keys(e).length) return { ok: false, errors: e };
+    setDb((d) => ({ ...d, activities: [activity(d, actorId, "Password changed", "Changed account password", { entityId: actorId }), ...d.activities] }));
+    return { ok: true, data: true };
+  },
+};
+
+/** Demo sign-in: switching the viewed user records a Logout and a Login. */
+export const sessionService = {
+  switchUser(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    setDb((d) => ({ ...d, activities: [activity(d, toId, "Login", "Signed in"), activity(d, fromId, "Logout", "Signed out"), ...d.activities] }));
+  },
+};
