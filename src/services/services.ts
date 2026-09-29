@@ -2,14 +2,14 @@
  * Mock services with async, API-shaped signatures. Replace mockBranchService / mockSalesService
  * with fetch-based implementations of the same interfaces to go live.
  */
-import type { DateFormatPref, ReportPeriodPref, UserPreference, Role, User, UserStatus, Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
+import type { ApprovalRequest, DateFormatPref, ReportPeriodPref, UserPreference, Role, User, UserStatus, Activity, Branch, BranchStatus, Db, InventoryMovement, InventoryRecord, Product, ProductStatus, Sale, StockRequest, Target } from "@/data/mock-db";
 import { findInventory, getAvailable, getRequestOutstanding } from "@/lib/inventory-calculations";
 import { getAccessScope } from "@/lib/session";
 import { assignableRoles, canEditMember, roleNeedsBranch } from "@/lib/team";
 import { getDb, setDb } from "@/services/mock-store";
 import { entityFromAction } from "@/data/auditLogs";
 
-export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount" | "role" | "status", string>>;
+export type FieldErrors = Partial<Record<"name" | "code" | "location" | "email" | "address" | "phone" | "managerId" | "form" | "branchId" | "salesRepId" | "productId" | "quantity" | "unitPrice" | "saleDate" | "note" | "reason" | "sku" | "category" | "unit" | "unitCost" | "threshold" | "description" | "repId" | "month" | "amount" | "role" | "status" | "items" | "emergencyReason", string>> & { itemErrors?: Record<number, Partial<Record<"productId" | "quantity", string>>> };
 export type Result<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 export type BranchInput = { name: string; code: string; location: string; address: string; phone: string; email: string; managerId: string; status: BranchStatus };
 export type SaleInput = { branchId: string; salesRepId: string; productId: string; quantity: number; unitPrice: number; saleDate: string };
@@ -20,13 +20,13 @@ function nowOnReferenceDay(db: Db) {
   return `${db.tenant.referenceDate}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
 }
 /** The single audit writer: every module appends to db.activities through here. Never pass secrets. */
-export function createAuditLog(db: Db, actorId: string, action: string, subject: string, ref: { entityId?: string; branchId?: string | null; productId?: string } = {}): Activity {
+export function createAuditLog(db: Db, actorId: string, action: string, subject: string, ref: { entityId?: string; branchId?: string | null; productId?: string; emergency?: boolean } = {}): Activity {
   const branchId = ref.branchId === undefined ? db.users.find((u) => u.id === actorId)?.branchId ?? undefined : ref.branchId ?? undefined;
   const entityId = ref.entityId ?? subject.match(/\b(SR-\d+|SAL-\d+)\b/)?.[1];
   const metadata = { ...(branchId ? { branchId } : {}), ...(ref.productId ? { productId: ref.productId } : {}) };
   return {
     id: `act-${db.activities.length + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, tenantId: db.tenant.id, action, subject, actorId, createdAt: nowOnReferenceDay(db),
-    entity: entityFromAction(action), ...(entityId ? { entityId } : {}), ...(Object.keys(metadata).length ? { metadata } : {}),
+    entity: entityFromAction(action), ...(entityId ? { entityId } : {}), ...(ref.emergency ? { emergency: true } : {}), ...(Object.keys(metadata).length ? { metadata } : {}),
   };
 }
 const activity = createAuditLog;
@@ -162,11 +162,16 @@ export function applyInventoryChange(d: Db, c: InventoryChange): Db {
   };
 }
 
-export type AddStockInput = { branchId: string; productId: string; quantity: number; note: string };
+export type AddStockInput = { branchId: string; productId: string; quantity: number; note: string; emergency?: boolean; emergencyReason?: string };
 const labels = (d: Db, branchId: string, productId: string) => `${d.branches.find((b) => b.id === branchId)?.name} · ${d.products.find((p) => p.id === productId)?.name}`;
+const nextApprovalId = (d: Db) => `APR-${Math.max(2000, ...d.approvals.map((a) => Number(a.id.split("-")[1]) || 0)) + 1}`;
 
 export const mockInventoryService = {
-  async addStock(input: AddStockInput, actorId: string): Promise<Result<InventoryRecord>> {
+  /**
+   * Storekeeper stock additions need Manager approval before they count.
+   * Emergency additions are applied immediately and queued for Manager review afterwards.
+   */
+  async addStock(input: AddStockInput, actorId: string): Promise<Result<ApprovalRequest>> {
     await latency();
     const current = getDb();
     const scope = getAccessScope(current, actorId);
@@ -180,10 +185,25 @@ export const mockInventoryService = {
     if (!product) errors.productId = "Select a product";
     else if (product.status !== "active") errors.productId = "This product is inactive — reactivate it before adding stock";
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) errors.quantity = "Enter a whole number greater than zero";
+    if (input.emergency && (input.emergencyReason ?? "").trim().length < 5) errors.emergencyReason = "Explain why this addition can't wait for approval";
     if (Object.keys(errors).length) return { ok: false, errors };
     const at = nowOnReferenceDay(current);
-    setDb((d) => ({ ...applyInventoryChange(d, { ...input, delta: input.quantity, type: "stock_added", referenceType: "manual", performedBy: actorId, at, note: input.note.trim() || undefined }), activities: [activity(d, actorId, "Stock added", `${labels(d, input.branchId, input.productId)} · +${input.quantity}`), ...d.activities] }));
-    return { ok: true, data: findInventory(getDb(), input.branchId, input.productId)! };
+    const approval: ApprovalRequest = {
+      id: nextApprovalId(current), tenantId: current.tenant.id, type: "stock_addition", status: "pending", branchId: input.branchId,
+      requestedBy: actorId, requestedAt: at, productId: input.productId, quantity: input.quantity,
+      ...(input.note.trim() ? { note: input.note.trim() } : {}),
+      ...(input.emergency ? { emergency: true, emergencyReason: input.emergencyReason!.trim(), appliedAt: at } : {}),
+    };
+    setDb((d) => {
+      const base = input.emergency
+        ? applyInventoryChange(d, { branchId: input.branchId, productId: input.productId, delta: input.quantity, type: "stock_added", referenceType: "manual", referenceId: approval.id, performedBy: actorId, at, note: `EMERGENCY: ${approval.emergencyReason}` })
+        : d;
+      const log = input.emergency
+        ? activity(d, actorId, "Emergency stock added", `${approval.id} · ${labels(d, input.branchId, input.productId)} · +${input.quantity} · ${approval.emergencyReason}`, { entityId: approval.id, branchId: input.branchId, productId: input.productId, emergency: true })
+        : activity(d, actorId, "Stock addition submitted", `${approval.id} · ${labels(d, input.branchId, input.productId)} · +${input.quantity} awaiting manager approval`, { entityId: approval.id, branchId: input.branchId, productId: input.productId });
+      return { ...base, approvals: [approval, ...d.approvals], activities: [log, ...d.activities] };
+    });
+    return { ok: true, data: approval };
   },
   /** Stock count correction: sets on-hand to the counted quantity and records the delta. */
   async adjustStock(inventoryId: string, countedQuantity: number, reason: string, actorId: string): Promise<Result<InventoryRecord>> {
@@ -215,7 +235,59 @@ function reviewable(db: Db, id: string, actorId: string, perm: "canReviewRequest
   return { req } as const;
 }
 
+export type StockRequestItem = { productId: string; quantity: number };
 export const mockStockRequestService = {
+  /** One submission, several products: each item becomes its own request row sharing a batchId, so approval/fulfillment stay per product. */
+  async createBatch(input: { branchId: string; items: StockRequestItem[]; note: string }, actorId: string): Promise<Result<StockRequest[]>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    if (!scope.canCreateRequests) return { ok: false, errors: { form: "Only sales representatives can submit stock requests" } };
+    const errors: FieldErrors = {};
+    const itemErrors: NonNullable<FieldErrors["itemErrors"]> = {};
+    const branch = current.branches.find((b) => b.id === input.branchId);
+    if (!branch || branch.status !== "active") errors.branchId = "Select an active branch";
+    else if (scope.user.branchId !== branch.id) errors.branchId = "You can only request stock for your own branch";
+    if (!input.items.length) errors.items = "Add at least one product";
+    const seen = new Set<string>();
+    input.items.forEach((it, i) => {
+      const e: Partial<Record<"productId" | "quantity", string>> = {};
+      const product = current.products.find((p) => p.id === it.productId);
+      if (!product) e.productId = "Select a product";
+      else if (product.status !== "active") e.productId = "This product is inactive and cannot be requested";
+      else if (seen.has(it.productId)) e.productId = "This product is already in the request";
+      else if (branch && !findInventory(current, branch.id, it.productId)) e.productId = "This branch does not stock this product";
+      if (it.productId) seen.add(it.productId);
+      if (!Number.isInteger(it.quantity) || it.quantity <= 0) e.quantity = "Enter a whole number greater than zero";
+      if (Object.keys(e).length) itemErrors[i] = e;
+    });
+    if (Object.keys(itemErrors).length) { errors.itemErrors = itemErrors; errors.items = "Fix the highlighted items"; }
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const max = Math.max(1000, ...current.stockRequests.map((r) => Number(r.id.split("-")[1]) || 0));
+    const at = nowOnReferenceDay(current);
+    const batchId = input.items.length > 1 ? `SRB-${max + 1}` : undefined;
+    const reqs: StockRequest[] = input.items.map((it, i) => ({
+      id: `SR-${max + 1 + i}`, tenantId: current.tenant.id, branchId: input.branchId, repId: actorId, productId: it.productId,
+      quantityRequested: it.quantity, status: "pending", priority: "Normal", requestedAt: at,
+      ...(input.note.trim() ? { note: input.note.trim() } : {}), ...(batchId ? { batchId } : {}),
+    }));
+    setDb((d) => ({ ...d, stockRequests: [...reqs, ...d.stockRequests], activities: [...reqs.map((r) => activity(d, actorId, "Stock request submitted", `${r.id} · ${labels(d, r.branchId, r.productId)} · ${r.quantityRequested} units${batchId ? ` · ${batchId}` : ""}`)).reverse(), ...d.activities] }));
+    return { ok: true, data: reqs };
+  },
+  /** Rep confirms they received fulfilled stock: Fulfilled → Acknowledged. */
+  async acknowledge(id: string, actorId: string): Promise<Result<StockRequest>> {
+    await latency();
+    const current = getDb();
+    const scope = getAccessScope(current, actorId);
+    const req = current.stockRequests.find((r) => r.id === id);
+    if (!req) return { ok: false, errors: { form: "Stock request not found" } };
+    if (!scope.canAcknowledgeStock || req.repId !== actorId) return { ok: false, errors: { form: "Only the requesting sales rep can acknowledge receipt" } };
+    if (req.status !== "fulfilled") return { ok: false, errors: { form: "Only fulfilled requests can be acknowledged" } };
+    if (req.acknowledgedAt) return { ok: false, errors: { form: "Receipt was already acknowledged" } };
+    const at = nowOnReferenceDay(current);
+    setDb((d) => ({ ...updateRequest(d, id, { acknowledgedAt: at, acknowledgedBy: actorId }), activities: [activity(d, actorId, "Stock request acknowledged", `${id} · ${labels(d, req.branchId, req.productId)} · ${req.quantityFulfilled ?? 0} units received`, { entityId: id, branchId: req.branchId }), ...d.activities] }));
+    return { ok: true, data: getDb().stockRequests.find((r) => r.id === id)! };
+  },
   async create(input: StockRequestInput, actorId: string): Promise<Result<StockRequest>> {
     await latency();
     const current = getDb();
@@ -348,7 +420,9 @@ export const mockProductService = {
   async setStatus(id: string, status: ProductStatus, actorId: string): Promise<Result<Product>> {
     await latency();
     const current = getDb();
-    if (!getAccessScope(current, actorId).canManageProducts) return { ok: false, errors: { form: "You cannot change product status" } };
+    const ps = getAccessScope(current, actorId);
+    if (status === "inactive" ? !ps.canDeactivateProducts : !(ps.canDeactivateProducts || ps.canManageProducts))
+      return { ok: false, errors: { form: ps.canManageProducts ? "Deactivation needs a manager's approval — send a request instead" : "You cannot change product status" } };
     const existing = current.products.find((p) => p.id === id);
     if (!existing) return { ok: false, errors: { form: "Product not found" } };
     const product: Product = { ...existing, status, updatedAt: nowOnReferenceDay(current) };
@@ -356,6 +430,22 @@ export const mockProductService = {
     return { ok: true, data: product };
   },
 };
+
+/** Storekeeper asks their Manager to deactivate a product. */
+export async function requestProductDeactivation(productId: string, reason: string, actorId: string): Promise<Result<ApprovalRequest>> {
+  await latency();
+  const current = getDb();
+  const scope = getAccessScope(current, actorId);
+  if (!scope.canManageProducts || scope.canDeactivateProducts) return { ok: false, errors: { form: "You cannot request product deactivation" } };
+  const product = current.products.find((p) => p.id === productId);
+  if (!product) return { ok: false, errors: { form: "Product not found" } };
+  if (product.status !== "active") return { ok: false, errors: { form: "This product is already inactive" } };
+  if (current.approvals.some((a) => a.type === "product_deactivation" && a.status === "pending" && a.productId === productId)) return { ok: false, errors: { form: "A deactivation request for this product is already pending" } };
+  if (reason.trim().length < 3) return { ok: false, errors: { reason: "Give a reason for the manager" } };
+  const approval: ApprovalRequest = { id: nextApprovalId(current), tenantId: current.tenant.id, type: "product_deactivation", status: "pending", branchId: scope.user.branchId, requestedBy: actorId, requestedAt: nowOnReferenceDay(current), productId, note: reason.trim() };
+  setDb((d) => ({ ...d, approvals: [approval, ...d.approvals], activities: [activity(d, actorId, "Product deactivation requested", `${approval.id} · ${product.name} · ${approval.note}`, { entityId: approval.id, productId }), ...d.activities] }));
+  return { ok: true, data: approval };
+}
 
 // ---------- targets ----------
 export type TargetInput = { repId: string; month: string; amount: number };
@@ -444,9 +534,11 @@ function syncBranches(d: Db, user: User, previous?: User) {
 }
 
 export const mockTeamService = {
+  /** Owner only — managers go through requestMember so the Owner approves new accounts. */
   async create(input: TeamMemberInput, actorId: string): Promise<Result<User>> {
     await latency();
     const db = getDb();
+    if (getAccessScope(db, actorId).user.role !== "owner") return { ok: false, errors: { form: "New team members need the Owner's approval." } };
     const errors = validateTeamMember(db, input, actorId);
     if (Object.keys(errors).length) return { ok: false, errors };
     const n = db.users.reduce((m, u) => Math.max(m, Number(u.id.slice(5)) || 0), 0) + 1;
@@ -454,6 +546,18 @@ export const mockTeamService = {
     const user: User = { id: `user-${String(n).padStart(3, "0")}`, tenantId: db.tenant.id, name: input.name.trim(), email: input.email.trim().toLowerCase(), role: input.role, branchId, managerId: branchManager(db, input.role, branchId), status: input.status, createdAt: nowOnReferenceDay(db) };
     setDb((d) => ({ ...d, users: [...d.users, user], branches: syncBranches(d, user), activities: [activity(d, actorId, "Team member created", `${user.name} · ${input.role.replace("_", " ")}`), ...d.activities] }));
     return { ok: true, data: user };
+  },
+  /** Manager proposes a new member; nothing is added to the team until the Owner approves. */
+  async requestMember(input: TeamMemberInput, actorId: string): Promise<Result<ApprovalRequest>> {
+    await latency();
+    const db = getDb();
+    const errors = validateTeamMember(db, { ...input, status: "pending" }, actorId);
+    const email = input.email.trim().toLowerCase();
+    if (!errors.email && db.approvals.some((a) => a.type === "team_member" && a.status === "pending" && a.member?.email === email)) errors.email = "A request for this email is already waiting for approval.";
+    if (Object.keys(errors).length) return { ok: false, errors };
+    const approval: ApprovalRequest = { id: nextApprovalId(db), tenantId: db.tenant.id, type: "team_member", status: "pending", branchId: input.branchId || null, requestedBy: actorId, requestedAt: nowOnReferenceDay(db), member: { name: input.name.trim(), email, role: input.role, branchId: input.branchId || null } };
+    setDb((d) => ({ ...d, approvals: [approval, ...d.approvals], activities: [activity(d, actorId, "Team member request submitted", `${approval.id} · ${approval.member!.name} · ${input.role.replace("_", " ")}`, { entityId: approval.id }), ...d.activities] }));
+    return { ok: true, data: approval };
   },
   async update(id: string, input: TeamMemberInput, actorId: string): Promise<Result<User>> {
     await latency();
@@ -486,6 +590,61 @@ export const mockTeamService = {
   },
 };
 
+// ---------- approvals (Storekeeper → Manager, Manager → Owner) ----------
+export function canReviewApproval(db: Db, actorId: string, a: ApprovalRequest) {
+  const scope = getAccessScope(db, actorId);
+  if (!scope.canReviewApprovals || a.requestedBy === actorId) return false;
+  if (scope.user.role === "owner") return true;
+  return a.type !== "team_member" && !!a.branchId && !!scope.branchIds?.includes(a.branchId);
+}
+export const mockApprovalService = {
+  async approve(id: string, actorId: string): Promise<Result<ApprovalRequest>> {
+    await latency();
+    const db = getDb();
+    const a = db.approvals.find((x) => x.id === id);
+    if (!a) return { ok: false, errors: { form: "Request not found" } };
+    if (!canReviewApproval(db, actorId, a)) return { ok: false, errors: { form: "You can't review this request" } };
+    if (a.status !== "pending") return { ok: false, errors: { form: "This request was already reviewed" } };
+    const at = nowOnReferenceDay(db);
+    if (a.type === "product_deactivation" && db.products.find((p) => p.id === a.productId)?.status !== "active") return { ok: false, errors: { form: "This product is already inactive" } };
+    if (a.type === "team_member" && db.users.some((u) => u.email.toLowerCase() === a.member?.email)) return { ok: false, errors: { form: "Someone on the team already uses this email" } };
+    if (a.type === "stock_addition" && !a.emergency && db.products.find((p) => p.id === a.productId)?.status !== "active") return { ok: false, errors: { form: "This product is inactive — stock can't be added" } };
+    const reviewed: ApprovalRequest = { ...a, status: "approved", reviewedBy: actorId, reviewedAt: at, ...(a.type === "stock_addition" && !a.emergency ? { appliedAt: at } : {}) };
+    setDb((d) => {
+      let next: Db = { ...d, approvals: d.approvals.map((x) => (x.id === id ? reviewed : x)) };
+      let log: Activity;
+      if (a.type === "stock_addition") {
+        if (!a.emergency) next = applyInventoryChange(next, { branchId: a.branchId!, productId: a.productId!, delta: a.quantity!, type: "stock_added", referenceType: "manual", referenceId: a.id, performedBy: a.requestedBy, at, note: a.note ? `${a.note} · approved` : "Approved stock addition" });
+        log = activity(d, actorId, a.emergency ? "Emergency stock addition reviewed" : "Stock addition approved", `${a.id} · ${labels(d, a.branchId!, a.productId!)} · +${a.quantity}`, { entityId: a.id, branchId: a.branchId, productId: a.productId!, emergency: !!a.emergency });
+      } else if (a.type === "product_deactivation") {
+        next = { ...next, products: next.products.map((p) => (p.id === a.productId ? { ...p, status: "inactive", updatedAt: at } : p)) };
+        log = activity(d, actorId, "Product deactivation approved", `${a.id} · ${d.products.find((p) => p.id === a.productId)?.name}`, { entityId: a.id, productId: a.productId! });
+      } else {
+        const m = a.member!;
+        const n = d.users.reduce((mx, u) => Math.max(mx, Number(u.id.slice(5)) || 0), 0) + 1;
+        const user: User = { id: `user-${String(n).padStart(3, "0")}`, tenantId: d.tenant.id, name: m.name, email: m.email, role: m.role, branchId: m.branchId, managerId: branchManager(d, m.role, m.branchId), status: "active", createdAt: at };
+        next = { ...next, users: [...next.users, user], branches: syncBranches(next, user) };
+        log = activity(d, actorId, "Team member request approved", `${a.id} · ${m.name} · ${m.role.replace("_", " ")}`, { entityId: a.id, branchId: m.branchId });
+      }
+      return { ...next, activities: [log, ...d.activities] };
+    });
+    return { ok: true, data: reviewed };
+  },
+  async reject(id: string, reason: string, actorId: string): Promise<Result<ApprovalRequest>> {
+    await latency();
+    const db = getDb();
+    const a = db.approvals.find((x) => x.id === id);
+    if (!a) return { ok: false, errors: { form: "Request not found" } };
+    if (!canReviewApproval(db, actorId, a)) return { ok: false, errors: { form: "You can't review this request" } };
+    if (a.status !== "pending") return { ok: false, errors: { form: "This request was already reviewed" } };
+    if (reason.trim().length < 3) return { ok: false, errors: { reason: "A rejection reason is required" } };
+    const reviewed: ApprovalRequest = { ...a, status: "rejected", reviewedBy: actorId, reviewedAt: nowOnReferenceDay(db), rejectionReason: reason.trim() };
+    const what = a.type === "stock_addition" ? (a.emergency ? "Emergency stock addition rejected" : "Stock addition rejected") : a.type === "product_deactivation" ? "Product deactivation rejected" : "Team member request rejected";
+    setDb((d) => ({ ...d, approvals: d.approvals.map((x) => (x.id === id ? reviewed : x)), activities: [activity(d, actorId, what, `${a.id} · ${reason.trim()}`, { entityId: a.id, branchId: a.branchId, emergency: !!a.emergency }), ...d.activities] }));
+    return { ok: true, data: reviewed };
+  },
+};
+export const approvalService = mockApprovalService;
 export const teamService = mockTeamService;
 export const targetService = mockTargetService;
 export const productService = mockProductService;

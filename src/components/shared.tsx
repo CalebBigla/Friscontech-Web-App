@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Search, type LucideIcon } from "lucide-react";
-import type { StockRequestStatus } from "@/data/mock-db";
-import { inventoryStatusLabel, requestStatusLabel, type InventoryStatus } from "@/lib/inventory-calculations";
+import type { StockRequest, StockRequestStatus } from "@/data/mock-db";
+import { getRequestDisplayStatus, inventoryStatusLabel, requestDisplayLabel, type InventoryStatus, type RequestDisplayStatus } from "@/lib/inventory-calculations";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PerformanceBand } from "@/lib/calculations";
 import { bandLabel } from "@/lib/calculations";
@@ -54,9 +54,11 @@ const stockTone: Record<InventoryStatus, string> = { in_stock: "status-success",
 export function StockStatusBadge({ status }: { status: InventoryStatus }) {
   return <span className={`status whitespace-nowrap ${stockTone[status]}`}>{inventoryStatusLabel[status]}</span>;
 }
-const requestTone: Record<StockRequestStatus, string> = { pending: "status-warning", approved: "status-brand", partially_fulfilled: "status-violet", fulfilled: "status-success", rejected: "status-danger" };
-export function RequestStatusBadge({ status }: { status: StockRequestStatus }) {
-  return <span className={`status whitespace-nowrap ${requestTone[status]}`}>{requestStatusLabel[status]}</span>;
+const requestTone: Record<RequestDisplayStatus, string> = { pending: "status-warning", approved: "status-brand", partially_fulfilled: "status-violet", fulfilled: "status-success", rejected: "status-danger", awaiting_ack: "status-warning", acknowledged: "status-success" };
+/** Pass `request` to show the acknowledgement state on fulfilled requests. */
+export function RequestStatusBadge({ status, request }: { status?: StockRequestStatus; request?: StockRequest }) {
+  const s: RequestDisplayStatus = request ? getRequestDisplayStatus(request) : status ?? "pending";
+  return <span className={`status whitespace-nowrap ${requestTone[s]}`}>{requestDisplayLabel[s]}</span>;
 }
 export function SearchBox({ value, onChange, placeholder, className = "sm:w-60" }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
   return (

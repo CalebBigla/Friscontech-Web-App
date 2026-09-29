@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ALL, EmptyState, FilterSelect, MetricCard, Panel, RequestStatusBadge, SearchBox, StockStatusBadge } from "@/components/shared";
 import { NewRequestDialog } from "@/components/stock-requests/new-request-dialog";
+import { AcknowledgeDialog } from "@/components/stock-requests/acknowledge-dialog";
 import { RequestActionDialog, type RequestAction } from "@/components/stock-requests/request-action-dialogs";
 import type { StockRequest, StockRequestStatus } from "@/data/mock-db";
 import { useDb } from "@/services/mock-store";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
-import { getRepIssuedStock, getStockRequestAvailability, getStockRequests, getStockRequestSummary, requestStatusLabel, withinDays } from "@/lib/inventory-calculations";
+import { getRepIssuedStock, getRequestDisplayStatus, getStockRequestAvailability, getStockRequests, getStockRequestSummary, needsAcknowledgement, requestDisplayLabel, withinDays } from "@/lib/inventory-calculations";
 import { monthOf } from "@/lib/dates";
 import { formatDayTime, formatNumber, formatShortDate } from "@/lib/format";
 
@@ -31,6 +32,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
   const [page, setPage] = useState(1);
   const [newOpen, setNewOpen] = useState(false);
   const [action, setAction] = useState<RequestAction>(null);
+  const [acking, setAcking] = useState<StockRequest | null>(null);
 
   const all = getStockRequests(db, { branchIds: scope.branchIds, repId: scope.repId });
   const summary = getStockRequestSummary(all);
@@ -44,14 +46,15 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
       const product = db.products.find((p) => p.id === r.productId);
       const repName = db.users.find((u) => u.id === r.repId)?.name ?? "";
       return (!needle || `${r.id} ${repName} ${product?.name} ${product?.sku}`.toLowerCase().includes(needle)) &&
-        (status === ALL || r.status === status) && (branch === ALL || !!scope.branchIds || r.branchId === branch) && (rep === ALL || !!scope.repId || r.repId === rep) &&
+        (status === ALL || r.status === status || getRequestDisplayStatus(r) === status) && (branch === ALL || !!scope.branchIds || r.branchId === branch) && (rep === ALL || !!scope.repId || r.repId === rep) &&
         (date === ALL || (date === "today" ? withinDays(r.requestedAt, today, 1) : date === "week" ? withinDays(r.requestedAt, today, 7) : monthOf(r.requestedAt) === monthOf(today)));
     });
   }, [all, db, query, status, branch, rep, date, today, scope.branchIds, scope.repId]);
   const pages = Math.max(1, Math.ceil(visible.length / PAGE));
   const shown = visible.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
 
-  const canAct = (r: StockRequest) => (r.status === "pending" && scope.canReviewRequests) || ((r.status === "approved" || r.status === "partially_fulfilled") && scope.canFulfillRequests);
+  const canAck = (r: StockRequest) => scope.canAcknowledgeStock && r.repId === userId && needsAcknowledgement(r);
+  const canAct = (r: StockRequest) => canAck(r) || (r.status === "pending" && scope.canReviewRequests) || ((r.status === "approved" || r.status === "partially_fulfilled") && scope.canFulfillRequests);
   const actions = (r: StockRequest) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Actions for ${r.id}`} onClick={(e) => e.stopPropagation()}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
@@ -61,11 +64,14 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
           <DropdownMenuItem onClick={() => setAction({ kind: "approve", request: r })}><Check className="size-4" />Approve</DropdownMenuItem>
           <DropdownMenuItem className="text-destructive" onClick={() => setAction({ kind: "reject", request: r })}><X className="size-4" />Reject</DropdownMenuItem>
         </>}
+        {canAck(r) && <DropdownMenuItem onClick={() => setAcking(r)}><CheckCheck className="size-4" />Acknowledge receipt</DropdownMenuItem>}
         {(r.status === "approved" || r.status === "partially_fulfilled") && scope.canFulfillRequests && <DropdownMenuItem onClick={() => setAction({ kind: "fulfill", request: r })}><PackageCheck className="size-4" />Fulfill</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-  const quickAction = (r: StockRequest) => r.status === "pending" && scope.canReviewRequests
+  const quickAction = (r: StockRequest) => canAck(r)
+    ? <Button size="sm" variant="soft" onClick={(e) => { e.stopPropagation(); setAcking(r); }}>Acknowledge</Button>
+    : r.status === "pending" && scope.canReviewRequests
     ? <Button size="sm" variant="soft" onClick={(e) => { e.stopPropagation(); setAction({ kind: "approve", request: r }); }}>Approve</Button>
     : (r.status === "approved" || r.status === "partially_fulfilled") && scope.canFulfillRequests
       ? <Button size="sm" variant="soft" onClick={(e) => { e.stopPropagation(); setAction({ kind: "fulfill", request: r }); }}>Fulfill</Button> : null;
@@ -91,7 +97,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
         <MetricCard icon={ClipboardList} tone="brand" label="Total requests" value={formatNumber(summary.total)} detail={scope.repId ? `${formatNumber(getRepIssuedStock(db, scope.repId))} units issued to you` : "All request history"} />
         <MetricCard icon={Clock} tone="warning" label="Pending" value={formatNumber(summary.pending)} detail="Awaiting review" badge={summary.pending ? "Action" : undefined} />
         <MetricCard icon={Check} tone="violet" label="Approved" value={formatNumber(summary.approved + summary.partial)} detail={`${summary.partial} partially fulfilled`} />
-        <MetricCard icon={CheckCheck} tone="success" label="Fulfilled" value={formatNumber(summary.fulfilled)} detail="Stock fully issued" />
+        <MetricCard icon={CheckCheck} tone="success" label="Fulfilled" value={formatNumber(summary.fulfilled)} detail={`${all.filter(needsAcknowledgement).length} awaiting acknowledgement`} badge={scope.repId && all.some(needsAcknowledgement) ? "Confirm" : undefined} />
         <MetricCard icon={XCircle} tone="warning" label="Rejected" value={formatNumber(summary.rejected)} detail="Kept in history" />
       </section>
 
@@ -99,7 +105,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
         action={<div className="flex flex-col gap-2 lg:flex-row">
           <SearchBox value={query} onChange={reset(setQuery)} placeholder="Search ID, rep, product or SKU" className="lg:w-56" />
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <FilterSelect label="Status filter" className="w-full sm:w-36" value={status} onChange={reset(setStatus)} options={[{ value: ALL, label: "All statuses" }, ...Object.entries(requestStatusLabel).map(([value, label]) => ({ value, label }))]} />
+            <FilterSelect label="Status filter" className="w-full sm:w-36" value={status} onChange={reset(setStatus)} options={[{ value: ALL, label: "All statuses" }, ...Object.entries(requestDisplayLabel).map(([value, label]) => ({ value, label }))]} />
             {!scope.branchIds && <FilterSelect label="Branch filter" className="w-full sm:w-36" value={branch} onChange={reset(setBranch)} options={[{ value: ALL, label: "All branches" }, ...branches.map((b) => ({ value: b.id, label: b.name.replace(" Branch", "") }))]} />}
             {!scope.repId && <FilterSelect label="Sales representative filter" className="w-full sm:w-36" value={rep} onChange={reset(setRep)} options={[{ value: ALL, label: "All reps" }, ...reps.map((u) => ({ value: u.id, label: u.name }))]} />}
             <FilterSelect label="Date filter" className="w-full sm:w-32" value={date} onChange={reset(setDate)} options={[{ value: ALL, label: "All dates" }, { value: "today", label: "Today" }, { value: "week", label: "Last 7 days" }, { value: "month", label: "This month" }]} />
@@ -115,14 +121,14 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
               const product = db.products.find((p) => p.id === r.productId);
               return (
                 <tr key={r.id} onClick={() => void navigate({ to: "/stock-requests/$requestId", params: { requestId: r.id } })} className="cursor-pointer border-t border-border text-xs transition-colors hover:bg-muted/60">
-                  <td className="px-4 py-3.5 font-mono text-[11px] font-semibold">{r.id}{r.priority === "High" && <span className="status status-danger ml-2 font-sans">High</span>}</td>
+                  <td className="px-4 py-3.5 font-mono text-[11px] font-semibold">{r.id}{r.batchId && <span className="ml-1.5 font-sans text-[10px] font-normal text-muted-foreground">· multi</span>}{r.priority === "High" && <span className="status status-danger ml-2 font-sans">High</span>}</td>
                   <td className="px-4 py-3.5 font-semibold">{db.users.find((u) => u.id === r.repId)?.name}</td>
                   <td className="px-4 py-3.5 text-muted-foreground">{db.branches.find((b) => b.id === r.branchId)?.name}</td>
                   <td className="px-4 py-3.5"><p className="font-semibold">{product?.name}</p><p className="font-mono text-[10px] text-muted-foreground">{product?.sku}</p></td>
                   <td className="px-4 py-3.5 text-right">{qtyCell(r)}</td>
                   <td className="px-4 py-3.5 text-right">{availCell(r)}</td>
                   <td className="px-4 py-3.5 text-muted-foreground">{formatDayTime(r.requestedAt, today)}</td>
-                  <td className="px-4 py-3.5"><RequestStatusBadge status={r.status} /></td>
+                  <td className="px-4 py-3.5"><RequestStatusBadge request={r} /></td>
                   <td className="px-4 py-3.5 text-muted-foreground">{processedDate(r) ? formatShortDate(processedDate(r)!) : "—"}</td>
                   <td className="px-4 py-2 text-right"><div className="flex items-center justify-end gap-1">{quickAction(r)}{actions(r)}</div></td>
                 </tr>);
@@ -135,7 +141,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
             <div key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <Link to="/stock-requests/$requestId" params={{ requestId: r.id }} className="min-w-0"><p className="truncate text-sm font-bold">{product?.name}</p><p className="text-[11px] text-muted-foreground">{r.id} · {db.users.find((u) => u.id === r.repId)?.name}</p></Link>
-                <div className="flex items-center gap-1"><RequestStatusBadge status={r.status} />{actions(r)}</div>
+                <div className="flex items-center gap-1"><RequestStatusBadge request={r} />{actions(r)}</div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
                 <div><p className="text-muted-foreground">Quantity</p><p>{qtyCell(r)}</p></div>
@@ -154,6 +160,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
 
       <NewRequestDialog open={newOpen} onOpenChange={setNewOpen} scope={scope} />
       <RequestActionDialog action={action} onClose={() => setAction(null)} actorId={userId} />
+      <AcknowledgeDialog request={acking} onClose={() => setAcking(null)} actorId={userId} />
     </AppShell>
   );
 }

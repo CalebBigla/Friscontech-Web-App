@@ -58,19 +58,36 @@ export type StockRequest = {
   requestedAt: string; approvedAt?: string; fulfilledAt?: string; rejectedAt?: string;
   approvedBy?: string; fulfilledBy?: string; processedBy?: string;
   note?: string; rejectionReason?: string;
+  /** set when several products were requested in one submission */
+  batchId?: string;
+  /** rep confirms receipt after fulfillment */
+  acknowledgedAt?: string; acknowledgedBy?: string;
+};
+export type ApprovalType = "stock_addition" | "product_deactivation" | "team_member";
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+/**
+ * Permission request raised by one role for another to review (Storekeeper → Manager, Manager → Owner).
+ * Emergency stock additions are applied immediately and stay "pending" until reviewed afterwards.
+ */
+export type ApprovalRequest = {
+  id: string; tenantId: string; type: ApprovalType; status: ApprovalStatus; branchId: string | null;
+  requestedBy: string; requestedAt: string; reviewedBy?: string; reviewedAt?: string; rejectionReason?: string; note?: string;
+  emergency?: boolean; emergencyReason?: string; appliedAt?: string;
+  productId?: string; quantity?: number;
+  member?: { name: string; email: string; role: Role; branchId: string | null };
 };
 export type AuditEntity = "product" | "sale" | "stock_request" | "target" | "team_member" | "branch" | "inventory" | "settings" | "session";
 /** Audit log entry (see src/data/auditLogs.ts): actorId = user_id, createdAt = timestamp, subject = description. */
 export type Activity = {
   id: string; tenantId: string; action: string; subject: string; actorId: string; createdAt: string;
-  entity: AuditEntity; entityId?: string; metadata?: { branchId?: string; productId?: string; targetId?: string; requestId?: string };
+  entity: AuditEntity; entityId?: string; emergency?: boolean; metadata?: { branchId?: string; productId?: string; targetId?: string; requestId?: string };
 };
 export type Escalation = { id: string; tenantId: string; branchId: string; type: string; detail: string; createdAt: string; tone: "danger" | "warning" | "neutral"; status: "open" | "resolved" };
 
 export type Db = {
   tenant: Tenant; branches: Branch[]; users: User[]; products: Product[]; sales: Sale[];
   inventory: InventoryRecord[]; inventoryMovements: InventoryMovement[]; targets: Target[]; stockRequests: StockRequest[];
-  activities: Activity[]; escalations: Escalation[]; preferences: UserPreference[];
+  activities: Activity[]; escalations: Escalation[]; preferences: UserPreference[]; approvals: ApprovalRequest[];
 };
 
 const T = "tenant-001";
@@ -248,10 +265,11 @@ const stockRequests: StockRequest[] = [
   sr({ id: "SR-1090", branchId: "branch-001", repId: "user-010", productId: "product-003", quantityRequested: 20, quantityApproved: 20, status: "approved", priority: "Normal", requestedAt: "2026-09-27T14:05:00", approvedAt: "2026-09-27T15:20:00", approvedBy: "user-022", processedBy: "user-022" }),
   sr({ id: "SR-1089", branchId: "branch-002", repId: "user-013", productId: "product-007", quantityRequested: 60, quantityApproved: 60, status: "approved", priority: "High", requestedAt: "2026-09-27T10:40:00", approvedAt: "2026-09-27T11:02:00", approvedBy: "user-023", processedBy: "user-023", note: "Bulk order — Lekki Tech Hub" }),
   sr({ id: "SR-1087", branchId: "branch-003", repId: "user-015", productId: "product-009", quantityRequested: 25, quantityApproved: 25, quantityFulfilled: 10, status: "partially_fulfilled", priority: "Normal", requestedAt: "2026-09-26T09:15:00", approvedAt: "2026-09-26T10:00:00", approvedBy: "user-024", fulfilledAt: "2026-09-26T16:30:00", fulfilledBy: "user-024", processedBy: "user-024" }),
-  sr({ id: "SR-1086", branchId: "branch-001", repId: "user-011", productId: "product-008", quantityRequested: 12, quantityApproved: 12, quantityFulfilled: 12, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-26T08:45:00", approvedAt: "2026-09-26T09:10:00", approvedBy: "user-022", fulfilledAt: "2026-09-26T11:25:00", fulfilledBy: "user-022", processedBy: "user-022" }),
+  sr({ id: "SR-1086", branchId: "branch-001", repId: "user-011", productId: "product-008", quantityRequested: 12, quantityApproved: 12, quantityFulfilled: 12, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-26T08:45:00", approvedAt: "2026-09-26T09:10:00", approvedBy: "user-022", fulfilledAt: "2026-09-26T11:25:00", fulfilledBy: "user-022", processedBy: "user-022", acknowledgedAt: "2026-09-26T12:02:00", acknowledgedBy: "user-011" }),
   sr({ id: "SR-1085", branchId: "branch-004", repId: "user-017", productId: "product-006", quantityRequested: 5, status: "rejected", priority: "Normal", requestedAt: "2026-09-25T13:20:00", rejectedAt: "2026-09-25T15:05:00", processedBy: "user-005", rejectionReason: "Request not authorized — laptops need manager sign-off" }),
-  sr({ id: "SR-1084", branchId: "branch-005", repId: "user-020", productId: "product-010", quantityRequested: 15, quantityApproved: 15, quantityFulfilled: 15, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-24T09:30:00", approvedAt: "2026-09-24T10:12:00", approvedBy: "user-025", fulfilledAt: "2026-09-24T12:40:00", fulfilledBy: "user-025", processedBy: "user-025" }),
-  sr({ id: "SR-1083", branchId: "branch-002", repId: "user-014", productId: "product-003", quantityRequested: 10, quantityApproved: 10, quantityFulfilled: 10, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-23T11:00:00", approvedAt: "2026-09-23T11:30:00", approvedBy: "user-023", fulfilledAt: "2026-09-23T14:10:00", fulfilledBy: "user-023", processedBy: "user-023" }),
+  sr({ id: "SR-1084", branchId: "branch-005", repId: "user-020", productId: "product-010", quantityRequested: 15, quantityApproved: 15, quantityFulfilled: 15, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-24T09:30:00", approvedAt: "2026-09-24T10:12:00", approvedBy: "user-025", fulfilledAt: "2026-09-24T12:40:00", fulfilledBy: "user-025", processedBy: "user-025", acknowledgedAt: "2026-09-24T13:15:00", acknowledgedBy: "user-020" }),
+  sr({ id: "SR-1083", branchId: "branch-002", repId: "user-014", productId: "product-003", quantityRequested: 10, quantityApproved: 10, quantityFulfilled: 10, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-23T11:00:00", approvedAt: "2026-09-23T11:30:00", approvedBy: "user-023", fulfilledAt: "2026-09-23T14:10:00", fulfilledBy: "user-023", processedBy: "user-023", acknowledgedAt: "2026-09-23T15:00:00", acknowledgedBy: "user-014" }),
+  sr({ id: "SR-1081", branchId: "branch-001", repId: "user-010", productId: "product-011", quantityRequested: 18, quantityApproved: 18, quantityFulfilled: 18, status: "fulfilled", priority: "Normal", requestedAt: "2026-09-25T09:10:00", approvedAt: "2026-09-25T09:40:00", approvedBy: "user-022", fulfilledAt: "2026-09-25T11:05:00", fulfilledBy: "user-022", processedBy: "user-022" }),
   sr({ id: "SR-1082", branchId: "branch-001", repId: "user-012", productId: "product-001", quantityRequested: 8, status: "rejected", priority: "High", requestedAt: "2026-09-22T10:20:00", rejectedAt: "2026-09-22T12:00:00", processedBy: "user-022", rejectionReason: "Product unavailable" }),
 ];
 
@@ -292,6 +310,11 @@ export function createSeedDb(): Db {
     stockRequests: stockRequests.map((x) => ({ ...x })),
     activities: seedAuditLogs({ tenantId: T, branches, users, products, sales, stockRequests, inventoryMovements: movements, targets }, REF),
     preferences: [],
+    approvals: [
+      { id: "APR-2003", tenantId: T, type: "stock_addition", status: "pending", branchId: "branch-001", requestedBy: "user-022", requestedAt: "2026-09-28T08:40:00", productId: "product-009", quantity: 40, note: "Supplier delivery #4471 received" },
+      { id: "APR-2002", tenantId: T, type: "product_deactivation", status: "pending", branchId: "branch-001", requestedBy: "user-022", requestedAt: "2026-09-27T16:20:00", productId: "product-004", note: "Slow mover — supplier ending the line" },
+      { id: "APR-2001", tenantId: T, type: "team_member", status: "pending", branchId: "branch-001", requestedBy: "user-002", requestedAt: "2026-09-27T11:05:00", member: { name: "Ngozi Umeh", email: "ngozi.umeh@westfield.ng", role: "sales_rep", branchId: "branch-001" }, note: "Covering weekend shifts" },
+    ],
     escalations: [
       { id: "esc-001", tenantId: T, branchId: "branch-004", type: "Target dispute", detail: "Q4 target review requested by manager", createdAt: "2026-09-28T07:14:00", tone: "danger", status: "open" },
       { id: "esc-002", tenantId: T, branchId: "branch-006", type: "Stock delay", detail: "Delivery #882 is four hours overdue", createdAt: "2026-09-28T04:14:00", tone: "warning", status: "open" },

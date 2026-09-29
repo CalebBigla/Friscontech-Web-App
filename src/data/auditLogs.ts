@@ -17,7 +17,7 @@ export function entityFromAction(action: string): AuditEntity {
   if (a.startsWith("product")) return "product";
   if (a.startsWith("sale")) return "sale";
   if (a.startsWith("stock request")) return "stock_request";
-  if (a.startsWith("stock")) return "inventory";
+  if (a.startsWith("stock") || a.includes("emergency")) return "inventory";
   if (a.includes("target")) return "target";
   if (a.startsWith("branch created") || a.startsWith("branch updated") || a.startsWith("branch deactivated") || a.startsWith("branch activated")) return "branch";
   if (a.startsWith("team") || a.startsWith("role") || a.startsWith("branch assignment") || a.includes("sales rep added")) return "team_member";
@@ -38,7 +38,7 @@ export function verbFromAction(action: string): AuditVerb {
   if (a.includes("approved")) return "Approved";
   if (a.includes("rejected")) return "Rejected";
   if (a.includes("fulfilled")) return "Fulfilled";
-  if (a.includes("submitted")) return "Submitted";
+  if (a.includes("submitted") || a.includes("requested")) return "Submitted";
   if (a.includes("recorded")) return "Recorded";
   if (a.includes("adjusted")) return "Adjusted";
   if (a.includes("stock added")) return "Added";

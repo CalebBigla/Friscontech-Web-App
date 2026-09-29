@@ -46,19 +46,29 @@ export type AccessScope = {
   canManageSettings: boolean;
   /** owner + manager: see business + organization details */
   canViewOrganizationSettings: boolean;
+  /** review permission requests: manager = storekeeper stock additions + product deactivations in own branch; owner = everything incl. new team members */
+  canReviewApprovals: boolean;
+  /** deactivate products directly (owner + manager); storekeepers must request it */
+  canDeactivateProducts: boolean;
+  /** confirm receipt of fulfilled stock (sales reps) */
+  canAcknowledgeStock: boolean;
 };
 
 const none = { canManageStock: false, canReviewRequests: false, canFulfillRequests: false, canCreateRequests: false, canViewBranches: false, canManageProducts: false, canViewInventoryAdmin: true, canManageTargets: false, canManageTeam: false, canViewReports: false };
 export function getAccessScope(db: Db, userId: string): AccessScope {
   const s = baseScope(db, userId);
-  return { ...s, canViewAuditLogs: true, canManageSettings: s.user.role === "owner", canViewOrganizationSettings: s.user.role === "owner" || s.user.role === "manager" };
+  const r = s.user.role;
+  return { ...s, canViewAuditLogs: true, canManageSettings: r === "owner", canViewOrganizationSettings: r === "owner" || r === "manager",
+    canReviewApprovals: r === "owner" || r === "manager", canDeactivateProducts: r === "owner" || r === "manager", canAcknowledgeStock: r === "sales_rep" };
 }
-function baseScope(db: Db, userId: string): Omit<AccessScope, "canViewAuditLogs" | "canManageSettings" | "canViewOrganizationSettings"> {
+type Extra = "canViewAuditLogs" | "canManageSettings" | "canViewOrganizationSettings" | "canReviewApprovals" | "canDeactivateProducts" | "canAcknowledgeStock";
+function baseScope(db: Db, userId: string): Omit<AccessScope, Extra> {
   const user = (db.users.find((x) => x.id === userId) ?? db.users[0])!;
   const own = user.branchId ? [user.branchId] : [];
   switch (user.role) {
     case "owner": return { user, branchIds: null, canManageBranches: true, canRecordSales: true, canViewSales: true, ...none, canViewBranches: true, canManageProducts: true, canManageTargets: true, canManageTeam: true, canViewReports: true };
-    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canReviewRequests: true, canViewBranches: true, canManageProducts: true, canManageTargets: true, canManageTeam: true, canViewReports: true };
+    // Managers supervise: no sales entry, no catalogue additions, no rep stock-request review, no Branches module.
+    case "manager": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: true, ...none, canViewBranches: false, canManageProducts: false, canManageTargets: true, canManageTeam: true, canViewReports: true };
     case "storekeeper": return { user, branchIds: own, canManageBranches: false, canRecordSales: false, canViewSales: false, canManageStock: true, canReviewRequests: true, canFulfillRequests: true, canCreateRequests: false, canViewBranches: false, canManageProducts: true, canViewInventoryAdmin: true, canManageTargets: false, canManageTeam: false, canViewReports: false };
     case "sales_rep": return { user, branchIds: own, repId: user.id, canManageBranches: false, canRecordSales: true, canViewSales: true, ...none, canCreateRequests: true, canViewInventoryAdmin: false };
   }
