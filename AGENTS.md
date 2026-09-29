@@ -22,3 +22,5 @@
 - Role-specific navigation lives in `app-shell.tsx` (`sectionsFor`), pages are gated with `RoleGate` and data comes from role-scoped selectors (`getAccessScope`, `lib/audit.ts`); so hidden modules are also unreachable by URL.
 - Product and rep-target selectors live in `src/lib/catalog-calculations.ts` (target achievement = rep's completed sales in the month, status from pace); so targets never store achieved values.
 - Products are soft-deactivated (`status`), never deleted; services refuse inactive products for new sales, stock requests and stock additions so history stays intact.
+- Team is a view over `db.users` via `src/lib/team.ts` (`canAccessMember`, `getTeamMembers`) and writes via `teamService`; so managers never receive other teams' users and users are only soft-deactivated.
+- Reports (`src/lib/reports.ts`) only compose existing Sales/Targets/Inventory/Team selectors, scoped by `canViewReports` + `branchIds`; so reports never become a second source of truth.
