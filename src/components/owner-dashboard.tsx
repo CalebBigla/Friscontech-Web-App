@@ -9,6 +9,7 @@ import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { useDb } from "@/services/mock-store";
 import { requestStatusLabel } from "@/lib/inventory-calculations";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
+import { getAuditLogs } from "@/lib/audit";
 import {
   bandLabel, getBranchInventoryHealth, getBranchManager, getBranchPerformance, getDeadStockValue, getSalesRevenue,
   getTargetForRange, getWeeklyRevenueSeries, percentChange,
@@ -127,8 +128,8 @@ export function OwnerDashboard() {
           <div className="mt-4 space-y-2">{requests.map((request) => { const done = request.status !== "pending"; return <div key={request.id} className="flex items-center gap-3 rounded-md bg-muted p-3"><span className="grid size-8 shrink-0 place-items-center rounded-md bg-background"><Package className="size-4 text-primary" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{nameOf(request.branchId)}</p><p className="truncate text-[10px] text-muted-foreground">{request.quantityRequested} units · {productOf(request.productId)} · {minutesAgo(request.requestedAt, nowIso)}</p></div><Button size="sm" variant={done ? "soft" : "ghost"} asChild><Link to="/stock-requests/$requestId" params={{ requestId: request.id }}>{done ? <><Check className="size-3" />{requestStatusLabel[request.status]}</> : "Review"}</Link></Button></div>; })}</div>
         </article>
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
-          <div className="flex items-center justify-between"><h2 className="panel-title">Recent activity</h2><Button variant="ghost" size="sm" asChild><Link to="/sales">View all</Link></Button></div>
-          <div className="mt-3">{db.activities.slice(0, 4).map((item) => <div key={item.id} className="flex gap-3 border-b border-border py-3 last:border-0"><span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-success-soft text-success"><Check className="size-3" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold">{item.action}</p><p className="truncate text-[10px] text-muted-foreground">{item.subject}</p></div><span className="text-[10px] text-muted-foreground">{formatTime(item.createdAt)}</span></div>)}</div>
+          <div className="flex items-center justify-between"><h2 className="panel-title">Recent activity</h2><Button variant="ghost" size="sm" asChild><Link to="/audit-log">View all</Link></Button></div>
+          <div className="mt-3">{getAuditLogs(db, scope).slice(0, 4).map((item) => <div key={item.id} className="flex gap-3 border-b border-border py-3 last:border-0"><span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-success-soft text-success"><Check className="size-3" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold">{item.action}</p><p className="truncate text-[10px] text-muted-foreground">{item.subject}</p></div><span className="text-[10px] text-muted-foreground">{formatTime(item.createdAt)}</span></div>)}</div>
         </article>
         <article className="rounded-lg border border-border bg-card p-5 shadow-panel">
           <div className="flex items-center justify-between"><h2 className="panel-title">Escalations</h2><span className="status status-danger">{openEscalations.length} open</span></div>
