@@ -74,11 +74,11 @@ export function ProductsPage() {
           <tbody>{list.map((p) => { const row = branchRows.find((r) => r.product.id === p.id); return (
             <tr key={p.id} className="border-t border-border text-xs">
               <td className="px-5 py-3 font-bold">{manage ? <Link to="/products/$productId" params={{ productId: p.id }} className="hover:text-primary">{p.name}</Link> : p.name}</td>
-              <td className="px-5 py-3 font-mono text-[11px] text-muted-foreground">{p.sku}</td><td className="px-5 py-3">{p.category}</td><td className="px-5 py-3">{p.unit}</td>
+              <td className="whitespace-nowrap px-5 py-3 font-mono text-[11px] text-muted-foreground">{p.sku}</td><td className="px-5 py-3">{p.category}</td><td className="px-5 py-3">{p.unit}</td>
               <td className="px-5 py-3 text-right font-semibold">{formatNaira(p.unitPrice)}</td>
               {manage ? <>
                 <td className="px-5 py-3 text-right text-muted-foreground">{formatNaira(p.unitCost)}</td><td className="px-5 py-3"><ProductStatusBadge status={p.status} /></td>
-                <td className="px-5 py-3 text-muted-foreground">{formatDate(p.createdAt.slice(0, 10))}</td><td className="px-5 py-3 text-right">{actions(p)}</td>
+                <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">{formatDate(p.createdAt.slice(0, 10))}</td><td className="px-5 py-3 text-right">{actions(p)}</td>
               </> : <><td className="px-5 py-3 text-right font-bold">{row ? formatNumber(row.available) : "—"}</td><td className="px-5 py-3">{row ? <StockStatusBadge status={row.status} /> : <span className="text-muted-foreground">Not stocked</span>}</td></>}
             </tr>); })}</tbody>
         </table></div>
