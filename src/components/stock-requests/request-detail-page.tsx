@@ -39,7 +39,7 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
         {canFulfill && <Button onClick={() => setAction({ kind: "fulfill", request: req })}><PackageCheck className="size-4" />Fulfill</Button>}
       </div>}>
       <Link to="/stock-requests" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Stock requests</Link>
-      <div className="mb-5 mt-2 flex flex-wrap items-center gap-3"><h1 className="text-xl font-bold">Request {req.id}</h1><RequestStatusBadge status={req.status} />{req.priority === "High" && <span className="status status-danger">High priority</span>}</div>
+      <div className="mb-5 mt-2 flex flex-wrap items-center gap-3"><h1 className="text-xl font-bold">Request {req.id}</h1><RequestStatusBadge request={req} />{req.priority === "High" && <span className="status status-danger">High priority</span>}</div>
 
       <section className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className="space-y-4">
@@ -53,7 +53,7 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
               <DetailItem label="SKU"><span className="font-mono text-xs">{product.sku}</span></DetailItem>
               <DetailItem label="Quantity requested">{formatUnits(req.quantityRequested)}</DetailItem>
               <DetailItem label="Current available stock"><span className="flex items-center gap-2">{formatUnits(avail.available)}<StockStatusBadge status={avail.status} /></span></DetailItem>
-              <DetailItem label="Status"><RequestStatusBadge status={req.status} /></DetailItem>
+              <DetailItem label="Status"><RequestStatusBadge request={req} /></DetailItem>
             </div>
             {req.note && <p className="border-t border-border px-5 py-3 text-xs"><span className="text-muted-foreground">Note: </span>{req.note}</p>}
             {req.status === "rejected" && <div className="border-t border-border p-5"><div className="alert alert-danger"><p className="text-[10px] font-bold uppercase">Rejection reason</p><p className="mt-1 text-xs font-semibold text-foreground">{req.rejectionReason}</p></div></div>}

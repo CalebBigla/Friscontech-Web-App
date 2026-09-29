@@ -122,7 +122,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
                   <td className="px-4 py-3.5 text-right">{qtyCell(r)}</td>
                   <td className="px-4 py-3.5 text-right">{availCell(r)}</td>
                   <td className="px-4 py-3.5 text-muted-foreground">{formatDayTime(r.requestedAt, today)}</td>
-                  <td className="px-4 py-3.5"><RequestStatusBadge status={r.status} /></td>
+                  <td className="px-4 py-3.5"><RequestStatusBadge request={r} /></td>
                   <td className="px-4 py-3.5 text-muted-foreground">{processedDate(r) ? formatShortDate(processedDate(r)!) : "—"}</td>
                   <td className="px-4 py-2 text-right"><div className="flex items-center justify-end gap-1">{quickAction(r)}{actions(r)}</div></td>
                 </tr>);
@@ -135,7 +135,7 @@ export function StockRequestsPage({ initialStatus }: { initialStatus?: StockRequ
             <div key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <Link to="/stock-requests/$requestId" params={{ requestId: r.id }} className="min-w-0"><p className="truncate text-sm font-bold">{product?.name}</p><p className="text-[11px] text-muted-foreground">{r.id} · {db.users.find((u) => u.id === r.repId)?.name}</p></Link>
-                <div className="flex items-center gap-1"><RequestStatusBadge status={r.status} />{actions(r)}</div>
+                <div className="flex items-center gap-1"><RequestStatusBadge request={r} />{actions(r)}</div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
                 <div><p className="text-muted-foreground">Quantity</p><p>{qtyCell(r)}</p></div>

@@ -70,7 +70,7 @@ export function RepDashboard() {
         </Panel>
         <Panel title="Recent stock requests" subtitle="Your latest requests" action={<Button variant="ghost" size="sm" asChild><Link to="/stock-requests">View all</Link></Button>}>
           {recentRequests.length ? <table className="w-full text-left"><thead><tr className="text-[10px] uppercase text-muted-foreground"><th className="px-5 py-3">Product</th><th className="px-5 py-3 text-right">Qty</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Date</th></tr></thead>
-            <tbody>{recentRequests.map((r) => <tr key={r.id} className="border-t border-border text-xs"><td className="px-5 py-3 font-semibold"><Link to="/stock-requests/$requestId" params={{ requestId: r.id }} className="hover:text-primary">{product(r.productId)}</Link></td><td className="px-5 py-3 text-right">{r.quantityRequested}</td><td className="px-5 py-3"><RequestStatusBadge status={r.status} /></td><td className="px-5 py-3 text-right text-muted-foreground">{formatDayTime(r.requestedAt, today)}</td></tr>)}</tbody></table>
+            <tbody>{recentRequests.map((r) => <tr key={r.id} className="border-t border-border text-xs"><td className="px-5 py-3 font-semibold"><Link to="/stock-requests/$requestId" params={{ requestId: r.id }} className="hover:text-primary">{product(r.productId)}</Link></td><td className="px-5 py-3 text-right">{r.quantityRequested}</td><td className="px-5 py-3"><RequestStatusBadge request={r} /></td><td className="px-5 py-3 text-right text-muted-foreground">{formatDayTime(r.requestedAt, today)}</td></tr>)}</tbody></table>
             : <EmptyState title="No requests yet" detail="Request stock when you run low." />}
         </Panel>
       </div>

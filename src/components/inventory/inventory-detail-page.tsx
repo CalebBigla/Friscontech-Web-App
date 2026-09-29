@@ -73,7 +73,7 @@ export function InventoryDetailPage({ inventoryId }: { inventoryId: string }) {
             {openRequests.length ? <div className="divide-y divide-border">{openRequests.map((r) => (
               <Link key={r.id} to="/stock-requests/$requestId" params={{ requestId: r.id }} className="flex items-center justify-between gap-3 px-5 py-3 text-xs hover:bg-muted/60">
                 <div className="min-w-0"><p className="font-semibold">{r.id} · {db.users.find((u) => u.id === r.repId)?.name}</p><p className="text-[11px] text-muted-foreground">{formatUnits(r.quantityRequested)} · {formatDayTime(r.requestedAt, db.tenant.referenceDate)}</p></div>
-                <RequestStatusBadge status={r.status} />
+                <RequestStatusBadge request={r} />
               </Link>))}</div> : <EmptyState title="You're all caught up." detail="No open requests for this product." />}
           </Panel>
           {otherBranches.length > 1 && <Panel title="Stock across branches">
