@@ -17,8 +17,12 @@ import { Route as BranchesIndexRouteImport } from './routes/branches.index'
 import { Route as BranchesBranchIdRouteImport } from './routes/branches.$branchId'
 import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
 import { Route as InventoryInventoryIdRouteImport } from './routes/inventory.$inventoryId'
+import { Route as ProductsIndexRouteImport } from './routes/products.index'
+import { Route as ProductsProductIdRouteImport } from './routes/products.$productId'
 import { Route as StockRequestsIndexRouteImport } from './routes/stock-requests.index'
 import { Route as StockRequestsRequestIdRouteImport } from './routes/stock-requests.$requestId'
+import { Route as TargetsIndexRouteImport } from './routes/targets.index'
+import { Route as TargetsTargetIdRouteImport } from './routes/targets.$targetId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -60,6 +64,16 @@ const InventoryInventoryIdRoute = InventoryInventoryIdRouteImport.update({
   path: '/inventory/$inventoryId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductsIndexRoute = ProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
+  id: '/products/$productId',
+  path: '/products/$productId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StockRequestsIndexRoute = StockRequestsIndexRouteImport.update({
   id: '/stock-requests/',
   path: '/stock-requests/',
@@ -70,6 +84,16 @@ const StockRequestsRequestIdRoute = StockRequestsRequestIdRouteImport.update({
   path: '/stock-requests/$requestId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TargetsIndexRoute = TargetsIndexRouteImport.update({
+  id: '/targets/',
+  path: '/targets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TargetsTargetIdRoute = TargetsTargetIdRouteImport.update({
+  id: '/targets/$targetId',
+  path: '/targets/$targetId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -78,10 +102,14 @@ export interface FileRoutesByFullPath {
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
   '/branches/': typeof BranchesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/products/': typeof ProductsIndexRoute
   '/stock-requests/': typeof StockRequestsIndexRoute
+  '/targets/': typeof TargetsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -90,10 +118,14 @@ export interface FileRoutesByTo {
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
   '/branches': typeof BranchesIndexRoute
   '/inventory': typeof InventoryIndexRoute
+  '/products': typeof ProductsIndexRoute
   '/stock-requests': typeof StockRequestsIndexRoute
+  '/targets': typeof TargetsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,10 +135,14 @@ export interface FileRoutesById {
   '/stock-movements': typeof StockMovementsRoute
   '/branches/$branchId': typeof BranchesBranchIdRoute
   '/inventory/$inventoryId': typeof InventoryInventoryIdRoute
+  '/products/$productId': typeof ProductsProductIdRoute
   '/stock-requests/$requestId': typeof StockRequestsRequestIdRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
   '/branches/': typeof BranchesIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/products/': typeof ProductsIndexRoute
   '/stock-requests/': typeof StockRequestsIndexRoute
+  '/targets/': typeof TargetsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,10 +153,14 @@ export interface FileRouteTypes {
     | '/stock-movements'
     | '/branches/$branchId'
     | '/inventory/$inventoryId'
+    | '/products/$productId'
     | '/stock-requests/$requestId'
+    | '/targets/$targetId'
     | '/branches/'
     | '/inventory/'
+    | '/products/'
     | '/stock-requests/'
+    | '/targets/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -129,10 +169,14 @@ export interface FileRouteTypes {
     | '/stock-movements'
     | '/branches/$branchId'
     | '/inventory/$inventoryId'
+    | '/products/$productId'
     | '/stock-requests/$requestId'
+    | '/targets/$targetId'
     | '/branches'
     | '/inventory'
+    | '/products'
     | '/stock-requests'
+    | '/targets'
   id:
     | '__root__'
     | '/'
@@ -141,10 +185,14 @@ export interface FileRouteTypes {
     | '/stock-movements'
     | '/branches/$branchId'
     | '/inventory/$inventoryId'
+    | '/products/$productId'
     | '/stock-requests/$requestId'
+    | '/targets/$targetId'
     | '/branches/'
     | '/inventory/'
+    | '/products/'
     | '/stock-requests/'
+    | '/targets/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -154,10 +202,14 @@ export interface RootRouteChildren {
   StockMovementsRoute: typeof StockMovementsRoute
   BranchesBranchIdRoute: typeof BranchesBranchIdRoute
   InventoryInventoryIdRoute: typeof InventoryInventoryIdRoute
+  ProductsProductIdRoute: typeof ProductsProductIdRoute
   StockRequestsRequestIdRoute: typeof StockRequestsRequestIdRoute
+  TargetsTargetIdRoute: typeof TargetsTargetIdRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
+  ProductsIndexRoute: typeof ProductsIndexRoute
   StockRequestsIndexRoute: typeof StockRequestsIndexRoute
+  TargetsIndexRoute: typeof TargetsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -218,6 +270,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryInventoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/products/': {
+      id: '/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof ProductsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products/$productId': {
+      id: '/products/$productId'
+      path: '/products/$productId'
+      fullPath: '/products/$productId'
+      preLoaderRoute: typeof ProductsProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stock-requests/': {
       id: '/stock-requests/'
       path: '/stock-requests'
@@ -232,6 +298,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StockRequestsRequestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/targets/': {
+      id: '/targets/'
+      path: '/targets'
+      fullPath: '/targets/'
+      preLoaderRoute: typeof TargetsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/targets/$targetId': {
+      id: '/targets/$targetId'
+      path: '/targets/$targetId'
+      fullPath: '/targets/$targetId'
+      preLoaderRoute: typeof TargetsTargetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -242,10 +322,14 @@ const rootRouteChildren: RootRouteChildren = {
   StockMovementsRoute: StockMovementsRoute,
   BranchesBranchIdRoute: BranchesBranchIdRoute,
   InventoryInventoryIdRoute: InventoryInventoryIdRoute,
+  ProductsProductIdRoute: ProductsProductIdRoute,
   StockRequestsRequestIdRoute: StockRequestsRequestIdRoute,
+  TargetsTargetIdRoute: TargetsTargetIdRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
+  ProductsIndexRoute: ProductsIndexRoute,
   StockRequestsIndexRoute: StockRequestsIndexRoute,
+  TargetsIndexRoute: TargetsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

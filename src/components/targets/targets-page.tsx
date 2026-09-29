@@ -84,7 +84,7 @@ export function TargetsPage({ month: monthParam }: { month?: string | undefined 
             <div className="mt-2"><TargetProgressBar p={r} /></div>
             <div className="mt-3 flex gap-2"><Button variant="outline" size="sm" asChild><Link to="/targets/$targetId" params={{ targetId: r.target.id }}>View</Link></Button><Button variant="outline" size="sm" onClick={() => setEditing(r.target)}>Edit</Button></div>
           </div>))}</div>
-        {!rows.length && <EmptyState title={all.length ? "No targets match your filters." : "No targets have been set for this month."} detail={all.length ? undefined : "Use Set Target to add one."} />}
+        {!rows.length && <EmptyState title={all.length ? "No targets match your filters." : "No targets have been set for this month."} {...(all.length ? {} : { detail: "Use Set Target to add one." })} />}
       </Panel>
       <SetTargetDialog open={creating} onOpenChange={setCreating} scope={scope} defaultMonth={month} onEditExisting={setEditing} />
       <EditTargetDialog target={editing} onClose={() => setEditing(null)} actorId={userId} />
