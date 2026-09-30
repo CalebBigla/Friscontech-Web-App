@@ -20,7 +20,7 @@ import { inventoryStatusLabel } from "@/lib/inventory-calculations";
 import { getInventoryReport, getReportReps, getSalesReport, getTargetReport, getTeamReport, reportTypeLabel, type ReportFilters, type ReportType } from "@/lib/reports";
 
 type Draft = { type: ReportType; period: PeriodKey; from: string; to: string; branchId: string; repId: string; productId: string };
-const periods: { value: PeriodKey; label: string }[] = [{ value: "today", label: "Today" }, { value: "week", label: "Last 7 days" }, { value: "month", label: "This month" }, { value: "quarter", label: "This quarter" }, { value: "custom", label: "Custom range" }];
+const periods: { value: PeriodKey; label: string }[] = [{ value: "today", label: "Today" }, { value: "week", label: "This week" }, { value: "month", label: "This month" }, { value: "quarter", label: "This quarter" }, { value: "custom", label: "Custom range" }];
 
 function downloadCsv(name: string, header: string[], rows: (string | number)[][]) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;

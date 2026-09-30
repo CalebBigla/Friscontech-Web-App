@@ -32,7 +32,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
   const totals = inventory.reduce((t, r) => ({ onHand: t.onHand + r.record.quantityOnHand, available: t.available + r.available }), { onHand: 0, available: 0 });
 
   return (
-    <AppShell title={product.name} subtitle={`${product.sku} · ${product.category}`} actions={scope.canManageProducts ? <div className="flex gap-2"><Button variant="outline" onClick={() => setToggling(true)}><Power className="size-4" /><span className="hidden sm:inline">{product.status === "active" ? "Deactivate" : "Activate"}</span></Button><Button onClick={() => setEditing(true)}><Pencil className="size-4" /><span className="hidden sm:inline">Edit</span></Button></div> : undefined}>
+    <AppShell title={product.name} subtitle={`${product.sku} · ${product.category}`} actions={scope.canManageProducts || scope.canDeactivateProducts ? <div className="flex gap-2"><Button variant="outline" onClick={() => setToggling(true)}><Power className="size-4" /><span className="hidden sm:inline">{product.status === "active" ? (scope.canDeactivateProducts ? "Deactivate" : "Request deactivation") : "Activate"}</span></Button>{scope.canManageProducts && <Button onClick={() => setEditing(true)}><Pencil className="size-4" /><span className="hidden sm:inline">Edit</span></Button>}</div> : undefined}>
       <Link to="/products" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Products</Link>
       <div className="mb-5 mt-2 flex flex-wrap items-center gap-3"><h1 className="text-xl font-bold">{product.name}</h1><ProductStatusBadge status={product.status} /></div>
       {product.status === "inactive" && <div className="alert-warning mb-5 rounded-lg p-4 text-xs">This product is inactive. It stays in historical records but can't be used for new sales, stock requests or stock additions.</div>}
@@ -79,7 +79,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
       </Panel>
 
       {scope.canManageProducts && <ProductFormDialog open={editing} onOpenChange={setEditing} actorId={userId} product={product} categories={getProductCategories(db)} />}
-      {scope.canManageProducts && <ProductStatusDialog product={toggling ? product : null} onClose={() => setToggling(false)} actorId={userId} />}
+      {(scope.canManageProducts || scope.canDeactivateProducts) && <ProductStatusDialog product={toggling ? product : null} onClose={() => setToggling(false)} actorId={userId} />}
     </AppShell>
   );
 }

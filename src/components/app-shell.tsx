@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  Activity, ArrowLeftRight, BarChart3, Bell, Boxes, ClipboardCheck, ClipboardList, LayoutDashboard, Menu, Package,
+  Activity, ArrowLeftRight, BadgeCheck, BarChart3, Bell, Boxes, ClipboardCheck, ClipboardList, LayoutDashboard, Menu, Package,
   Settings, ShoppingCart, Store, Target, Users, X, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,19 +13,20 @@ import { sessionService } from "@/services/services";
 import { getAccessScope, setCurrentUserId, useCurrentUserId, type AccessScope } from "@/lib/session";
 import { initials, roleLabel } from "@/lib/format";
 
-type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log" | "/team" | "/reports" | "/settings";
-type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean };
+type NavTo = "/" | "/branches" | "/sales" | "/inventory" | "/stock-requests" | "/products" | "/targets" | "/stock-movements" | "/audit-log" | "/team" | "/reports" | "/settings" | "/approvals";
+type NavItem = { label: string; icon: LucideIcon; to?: NavTo; ownerOnly?: boolean; needsSales?: boolean; needsBranches?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 const managementSections: NavSection[] = [
-  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/", ownerOnly: true }] },
+  { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
   { title: "Operations", items: [
-    { label: "Branches", icon: Store, to: "/branches" },
+    { label: "Branches", icon: Store, to: "/branches", needsBranches: true },
     { label: "Sales", icon: ShoppingCart, to: "/sales", needsSales: true },
     { label: "Inventory", icon: Boxes, to: "/inventory" },
     { label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" },
     { label: "Products", icon: Package, to: "/products" },
     { label: "Targets", icon: Target, to: "/targets" },
     { label: "Reports", icon: BarChart3, to: "/reports" },
+    { label: "Approvals", icon: BadgeCheck, to: "/approvals" },
   ] },
   { title: "Administration", items: [{ label: "Team", icon: Users, to: "/team" }, { label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }, { label: "Settings", icon: Settings, to: "/settings" }] },
 ];
@@ -38,7 +39,7 @@ const repSections: NavSection[] = [
 const storekeeperSections: NavSection[] = [
   { title: "Overview", items: [{ label: "Dashboard", icon: LayoutDashboard, to: "/" }] },
   { title: "Inventory", items: [{ label: "Inventory", icon: Boxes, to: "/inventory" }, { label: "Products", icon: Package, to: "/products" }, { label: "Stock Movements", icon: ArrowLeftRight, to: "/stock-movements" }] },
-  { title: "Operations", items: [{ label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }] },
+  { title: "Operations", items: [{ label: "Stock Requests", icon: ClipboardList, to: "/stock-requests" }, { label: "My Approvals", icon: BadgeCheck, to: "/approvals" }] },
   { title: "Account", items: [{ label: "Audit Log", icon: ClipboardCheck, to: "/audit-log" }, { label: "Settings", icon: Settings, to: "/settings" }] },
 ];
 const sectionsFor = (role: string) => role === "sales_rep" ? repSections : role === "storekeeper" ? storekeeperSections : managementSections;
@@ -65,7 +66,7 @@ export function AppShell({ title, subtitle, headerExtra, actions, children }: { 
         </div>
         <nav className="flex-1 overflow-y-auto p-3">
           {sectionsFor(scope.user.role).map((section) => {
-            const items = section.items.filter((i) => (!i.ownerOnly || scope.user.role === "owner") && (!i.needsSales || scope.canViewSales));
+            const items = section.items.filter((i) => (!i.ownerOnly || scope.user.role === "owner") && (!i.needsSales || scope.canViewSales) && (!i.needsBranches || scope.canViewBranches));
             if (!items.length) return null;
             return (
               <div key={section.title}>
