@@ -76,7 +76,7 @@ export function ApprovalsPage() {
           <FilterSelect label="Type filter" className="w-full sm:w-44" value={type} onChange={setType} options={[{ value: ALL, label: "All types" }, ...types.map(([value, label]) => ({ value, label }))]} />
           <FilterSelect label="Status filter" className="w-full sm:w-36" value={status} onChange={setStatus} options={[{ value: ALL, label: "All statuses" }, { value: "pending", label: "Pending" }, { value: "approved", label: "Approved" }, { value: "rejected", label: "Rejected" }]} />
         </div>}>
-        {list.length === 0 ? <EmptyState title={status === "pending" ? "You're all caught up." : "No requests match these filters"} detail={status === "pending" ? "Nothing is waiting for approval." : undefined} /> : (
+        {list.length === 0 ? <EmptyState title={status === "pending" ? "You're all caught up." : "No requests match these filters"} {...(status === "pending" ? { detail: "Nothing is waiting for approval." } : {})} /> : (
           <div className="divide-y divide-border">{list.map((a) => {
             const d = describeApproval(db, a);
             return (
@@ -106,7 +106,7 @@ export function ApprovalsPage() {
           <DialogHeader><DialogTitle>Reject {rejecting?.id}?</DialogTitle>
             <DialogDescription className="text-xs">{rejecting?.emergency ? "The emergency stock was already added. Rejecting records your objection; make a stock adjustment if the stock should be removed." : "The requester will see your reason. Nothing changes in the app."}</DialogDescription></DialogHeader>
           <div><Label htmlFor="apr-reason" className="text-xs">Reason *</Label><Textarea id="apr-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5 text-sm" /><FieldError message={reasonErr} /></div>
-          <DialogFooter className="gap-2"><Button variant="outline" onClick={() => setRejecting(null)}>Cancel</Button><Button variant="destructive" disabled={busy === rejecting?.id} onClick={() => void reject()}>Reject request</Button></DialogFooter>
+          <DialogFooter className="gap-2"><Button variant="outline" onClick={() => setRejecting(null)}>Cancel</Button><Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={busy === rejecting?.id} onClick={() => void reject()}>Reject request</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </AppShell>
