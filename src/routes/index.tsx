@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OwnerDashboard } from "@/components/owner-dashboard";
 import { RepDashboard } from "@/components/dashboards/rep-dashboard";
+import { ManagerDashboard } from "@/components/dashboards/manager-dashboard";
 import { StorekeeperDashboard } from "@/components/dashboards/storekeeper-dashboard";
 import { useDb } from "@/services/mock-store";
 import { getAccessScope, useCurrentUserId } from "@/lib/session";
@@ -24,5 +25,6 @@ function Index() {
   const role = getAccessScope(db, useCurrentUserId()).user.role;
   if (role === "sales_rep") return <RepDashboard />;
   if (role === "storekeeper") return <StorekeeperDashboard />;
+  if (role === "manager") return <ManagerDashboard />;
   return <OwnerDashboard />;
 }
