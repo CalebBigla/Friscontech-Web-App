@@ -43,6 +43,13 @@ export function TeamMemberDialog({ open, onOpenChange, scope, member }: { open: 
     e.preventDefault();
     const input = { ...form, branchId: form.branchId === NONE ? "" : form.branchId };
     setSaving(true);
+    if (!member && scope.user.role !== "owner") {
+      const q = await teamService.requestMember(input, scope.user.id);
+      setSaving(false);
+      if (!q.ok) { setErrors(q.errors); toast.error(q.errors.form ?? "Please fix the highlighted fields"); return; }
+      toast.success("Sent to the Owner for approval.", { description: `${q.data.member?.name} joins the team once approved (${q.data.id}).` });
+      onOpenChange(false); return;
+    }
     const r = member ? await teamService.update(member.id, input, scope.user.id) : await teamService.create(input, scope.user.id);
     setSaving(false);
     if (!r.ok) { setErrors(r.errors); toast.error(r.errors.form ?? "Please fix the highlighted fields"); return; }
@@ -53,7 +60,7 @@ export function TeamMemberDialog({ open, onOpenChange, scope, member }: { open: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader><DialogTitle>{member ? "Edit team member" : "Add team member"}</DialogTitle>
-          <DialogDescription className="text-xs">{member ? member.email : scope.user.role === "owner" ? "Invite a manager, storekeeper or sales representative." : "Invite a storekeeper or sales representative to your branch."}</DialogDescription></DialogHeader>
+          <DialogDescription className="text-xs">{member ? member.email : scope.user.role === "owner" ? "Invite a manager, storekeeper or sales representative." : "Propose a storekeeper or sales representative for your branch. The Owner approves new members."}</DialogDescription></DialogHeader>
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div><Label htmlFor="t-name" className="text-xs">Full name *</Label><Input id="t-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5 h-9" placeholder="e.g. Ngozi Umeh" aria-invalid={!!errors.name} /><FieldError message={errors.name} /></div>
           <div><Label htmlFor="t-email" className="text-xs">Email *</Label><Input id="t-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1.5 h-9" placeholder="name@westfield.ng" aria-invalid={!!errors.email} /><FieldError message={errors.email} /></div>
@@ -64,7 +71,7 @@ export function TeamMemberDialog({ open, onOpenChange, scope, member }: { open: 
           </div>
           <div><Label className="text-xs">Status *</Label><div className="mt-1.5"><FilterSelect label="Status" className="w-full" value={form.status} onChange={(v) => setForm({ ...form, status: v as UserStatus })} options={(["pending", "active", "inactive"] as UserStatus[]).map((s) => ({ value: s, label: userStatusLabel[s] }))} /></div><FieldError message={errors.status} /></div>
           <FieldError message={errors.form} />
-          <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <Loader2 className="size-4 animate-spin" />}{member ? "Save changes" : "Add member"}</Button></DialogFooter>
+          <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <Loader2 className="size-4 animate-spin" />}{member ? "Save changes" : scope.user.role === "owner" ? "Add member" : "Send for approval"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

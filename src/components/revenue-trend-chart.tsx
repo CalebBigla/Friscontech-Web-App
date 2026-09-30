@@ -7,11 +7,14 @@ type RevenuePoint = {
   label: string;
   revenue: number;
   target: number;
+  /** optional same-week revenue one period earlier, drawn as a faint comparison line */
+  previous?: number;
 };
 
 const chartConfig = {
   revenue: { label: "Actual revenue", color: "var(--color-primary)" },
   target: { label: "Weekly target", color: "var(--color-chart-target)" },
+  previous: { label: "Previous period", color: "var(--color-muted-foreground)" },
 } satisfies ChartConfig;
 
 export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
@@ -28,7 +31,7 @@ export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
               <stop offset="92%" stopColor="var(--color-primary)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.6} />
           <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={10} interval="preserveStartEnd" />
           <YAxis
             axisLine={false}
@@ -60,6 +63,7 @@ export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
             strokeWidth={2.5}
             activeDot={{ r: 4, fill: "var(--color-primary)", stroke: "var(--color-card)", strokeWidth: 2 }}
           />
+          {data.some((d) => d.previous !== undefined) ? <Line type="monotone" dataKey="previous" stroke="var(--color-muted-foreground)" strokeOpacity={0.45} strokeWidth={1.5} dot={false} activeDot={false} /> : null}
           <Line
             type="monotone"
             dataKey="target"
@@ -84,6 +88,7 @@ export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-3 text-[11px]">
         <span className="flex items-center gap-2 font-medium"><span className="size-2 rounded-full bg-primary" />Actual revenue</span>
         <span className="flex items-center gap-2 font-light-copy text-muted-foreground"><span className="w-4 border-t border-dashed border-chart-target" />Weekly target</span>
+        {data.some((d) => d.previous !== undefined) ? <span className="flex items-center gap-2 font-light-copy text-muted-foreground"><span className="w-4 border-t border-muted-foreground/50" />Previous period</span> : null}
         {peak ? <span className="ml-auto font-light-copy text-muted-foreground">Peak: <strong className="font-medium text-foreground">{peak.label} · {formatCompactNaira(peak.revenue)}</strong></span> : null}
       </div>
     </div>

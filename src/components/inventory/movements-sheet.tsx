@@ -4,12 +4,14 @@ import { ALL, FilterSelect } from "@/components/shared";
 import { MovementList } from "@/components/inventory/movement-list";
 import type { InventoryMovement } from "@/data/mock-db";
 import { useDb } from "@/services/mock-store";
+import { getAccessScope, useCurrentUserId } from "@/lib/session";
 import { getInventoryMovements, movementTypeLabel } from "@/lib/inventory-calculations";
 
 export function MovementsSheet({ open, onOpenChange, branchIds, branchId }: { open: boolean; onOpenChange: (o: boolean) => void; branchIds: string[] | null; branchId?: string | undefined }) {
   const db = useDb();
   const [type, setType] = useState(ALL);
-  const list = getInventoryMovements(db, { branchIds, branchId, type: type === ALL ? undefined : (type as InventoryMovement["type"]) });
+  const hideSales = getAccessScope(db, useCurrentUserId()).user.role === "storekeeper";
+  const list = getInventoryMovements(db, { branchIds, branchId, type: type === ALL ? undefined : (type as InventoryMovement["type"]) }).filter((m) => !hideSales || m.type !== "sale");
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">

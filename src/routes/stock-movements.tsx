@@ -28,11 +28,12 @@ function MovementsPage() {
   const scope = getAccessScope(db, useCurrentUserId());
   const [type, setType] = useState(ALL);
   const [limit, setLimit] = useState(50);
-  const list = getInventoryMovements(db, { branchIds: scope.branchIds, type: type === ALL ? undefined : (type as MovementType) });
+  const hideSales = scope.user.role === "storekeeper";
+  const list = getInventoryMovements(db, { branchIds: scope.branchIds, type: type === ALL ? undefined : (type as MovementType) }).filter((m) => !hideSales || m.type !== "sale");
   return (
     <AppShell title="Stock Movements" subtitle="Traceable inventory history">
       <div className="mb-5"><h1 className="text-xl font-bold">Stock Movements</h1><p className="mt-1 text-xs text-muted-foreground">Every change to on-hand stock, newest first.</p></div>
-      <Panel title="Movements" subtitle={`${list.length} movements`} action={<FilterSelect label="Movement type" value={type} onChange={(v) => { setType(v); setLimit(50); }} options={[{ value: ALL, label: "All types" }, ...Object.entries(movementTypeLabel).map(([value, label]) => ({ value, label }))]} />}>
+      <Panel title="Movements" subtitle={`${list.length} movements`} action={<FilterSelect label="Movement type" value={type} onChange={(v) => { setType(v); setLimit(50); }} options={[{ value: ALL, label: "All types" }, ...Object.entries(movementTypeLabel).filter(([k]) => !hideSales || k !== "sale").map(([value, label]) => ({ value, label }))]} />}>
         <MovementList db={db} movements={list.slice(0, limit)} showItem />
         {list.length > limit && <div className="border-t border-border p-3 text-center"><button className="text-xs font-semibold text-primary" onClick={() => setLimit((l) => l + 50)}>Show more</button></div>}
       </Panel>
